@@ -1,6 +1,6 @@
-# Foto-Mission Template
+# Foto-Mission · Silberhochzeit Britta & Lutz
 
-Eine private Foto-Mission für Geburtstage: Gäste scannen einen QR-Code, erhalten eine zufällige Aufgabe und laden ihr Bild in ein geschütztes Album hoch.
+Eine private Foto-Mission zur Silberhochzeit von Britta und Lutz Barmbold: Gäste scannen einen QR-Code, erhalten eine passende Aufgabe und laden ihr Bild in ein geschütztes Album hoch.
 
 ## In drei Schritten einrichten
 
@@ -36,7 +36,7 @@ Niemals einen `service_role`-Key oder ein Passwort in die Konfiguration schreibe
 
 Der Workflow `.github/workflows/deploy.yml` testet und baut die App bei einem Push auf `main` und lädt sie anschließend per FTP hoch. In GitHub unter **Settings → Secrets and variables → Actions** werden `FTP_SERVER`, `FTP_USERNAME` und `FTP_PASSWORD` benötigt.
 
-`server-dir` im Workflow muss zum Pfad der öffentlichen Webadresse passen. Für das FTP-Wurzelverzeichnis bleibt `./`; für `https://example.com/foto-mission/` wird daraus beispielsweise `./foto-mission/`.
+Die öffentliche Adresse ist `https://silberhochzeit-barmbold.ulhorn-webdesign.de/`. Der Workflow lädt derzeit nach `server-dir: ./`, weil die Subdomain direkt auf das FTP-Wurzelverzeichnis zeigen soll.
 
 ## Missionen und Design anpassen
 

@@ -112,6 +112,7 @@ export function validateMissions(missions) {
     'Kreativ',
     'Lustig',
     'Geburtstag',
+    'Jubelpaar',
     'Gruppe',
     'Erinnerung',
   ]);

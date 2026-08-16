@@ -77,9 +77,9 @@ jobs:
           local-dir: ./
 
           # Zielordner auf dem Webserver.
-          # Fuer eine App im Wurzelverzeichnis bleibt dieser Wert "./".
-          # Fuer https://example.com/foto-mission/ hier "./foto-mission/"
-          # eintragen. Der Pfad muss zu party.publicUrl passen.
+          # Die Subdomain zeigt direkt auf das FTP-Wurzelverzeichnis.
+          # Dieser Pfad passt daher zur oeffentlichen Adresse
+          # https://silberhochzeit-barmbold.ulhorn-webdesign.de/.
           server-dir: ./
 
           # Vorhandene Dateien auf dem Server, die hier nicht vorkommen, werden
@@ -112,6 +112,6 @@ jobs:
         run: |
           echo "Upload abgeschlossen."
           echo "Bitte prüfen:"
-          echo "  /             -> Foto-Mission"
+          echo "  /             -> Silberhochzeits-Foto-Mission"
           echo "  /album/       -> privates Album"
           echo "  /qr-print.html -> Druckseite mit QR-Code"

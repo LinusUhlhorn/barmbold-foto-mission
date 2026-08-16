@@ -65,8 +65,8 @@
 }
 
 .boot__blades polygon {
-  fill: rgba(233, 200, 119, 0.16);
-  stroke: rgba(233, 200, 119, 0.6);
+  fill: rgba(200, 204, 208, 0.16);
+  stroke: rgba(220, 224, 227, 0.6);
   stroke-width: 0.4;
   transform-origin: 50% 50%;
 }
@@ -245,7 +245,7 @@
   background:
     repeating-linear-gradient(
       45deg,
-      rgba(233, 200, 119, 0.09) 0 8px,
+      rgba(200, 204, 208, 0.09) 0 8px,
       transparent 8px 16px
     ),
     linear-gradient(150deg, #241653, #140d33 60%, #1d1046);
@@ -261,7 +261,7 @@
   font-size: 3.6rem;
   font-weight: 800;
   color: transparent;
-  -webkit-text-stroke: 1.5px rgba(233, 200, 119, 0.5);
+  -webkit-text-stroke: 1.5px rgba(220, 224, 227, 0.5);
   letter-spacing: -0.04em;
 }
 
@@ -335,7 +335,7 @@
     100deg,
     transparent,
     rgba(246, 226, 176, 0.42),
-    rgba(192, 38, 211, 0.3),
+    rgba(169, 141, 108, 0.3),
     transparent
   );
   filter: blur(14px);
@@ -389,7 +389,7 @@
   place-items: center;
   border-radius: 16px;
   color: var(--c-gold);
-  background: linear-gradient(150deg, rgba(233, 200, 119, 0.2), rgba(192, 38, 211, 0.14));
+  background: linear-gradient(150deg, rgba(220, 224, 227, 0.2), rgba(169, 141, 108, 0.14));
   border: 1px solid var(--c-border-gold);
 }
 
@@ -415,13 +415,13 @@
 .tag--gold {
   color: var(--c-gold-soft);
   border-color: var(--c-border-gold);
-  background: rgba(233, 200, 119, 0.13);
+  background: rgba(200, 204, 208, 0.13);
 }
 
 .tag--bonus {
   color: #f0c2ff;
-  border-color: rgba(192, 38, 211, 0.5);
-  background: rgba(192, 38, 211, 0.18);
+  border-color: rgba(169, 141, 108, 0.5);
+  background: rgba(169, 141, 108, 0.18);
 }
 
 .tag--test {
@@ -583,7 +583,7 @@
 
 .shutter-overlay__blades polygon {
   fill: rgba(6, 5, 14, 0.94);
-  stroke: rgba(233, 200, 119, 0.75);
+  stroke: rgba(220, 224, 227, 0.75);
   stroke-width: 0.4;
   transform-origin: 50% 50%;
 }
@@ -664,8 +664,8 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(76, 29, 149, 0.42),
-    rgba(192, 38, 211, 0.22) 45%,
+    rgba(104, 111, 118, 0.42),
+    rgba(169, 141, 108, 0.22) 45%,
     rgba(4, 3, 10, 0.55)
   );
   mix-blend-mode: overlay;

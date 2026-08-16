@@ -487,7 +487,7 @@ function renderSheet() {
   const grid = $('[data-sheet-grid]');
   clear(grid);
   $('[data-sheet-title]').textContent =
-    `${config.party.birthdayPersonName} · ${config.party.age}. Geburtstag`;
+    `${config.party.birthdayPersonName} · ${config.party.age} Jahre verheiratet`;
   $('[data-sheet-meta]').textContent =
     `${state.visible.length} Fotos${config.party.partyDate ? ` · ${config.party.partyDate}` : ''}`;
 
@@ -849,7 +849,7 @@ async function init() {
   applyTheme(config.theme);
   applyBigNumber(config.party.age);
   $('[data-album-title]').textContent =
-    `${config.party.birthdayPersonName} · ${config.party.age}. Geburtstag`;
+    `${config.party.birthdayPersonName} · Silberhochzeit`;
   document.title = `Privates Album · ${config.party.birthdayPersonName}`;
 
   bindEvents();

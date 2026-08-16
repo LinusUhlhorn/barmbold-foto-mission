@@ -155,7 +155,7 @@ test('Alle Kategorien der Aufgabenstellung kommen vor', () => {
     'Momente',
     'Kreativ',
     'Lustig',
-    'Geburtstag',
+    'Jubelpaar',
     'Gruppe',
     'Erinnerung',
   ]) {

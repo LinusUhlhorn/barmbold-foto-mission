@@ -41,22 +41,26 @@ test('Alle Hauptbereiche sind vorhanden', () => {
   }
 });
 
-test('Unbekannte persönliche Angaben stehen als erkennbarer Platzhalter drin', () => {
-  assert.equal(PARTY_CONFIG.party.birthdayPersonName, '[NAME DES GEBURTSTAGSKINDES]');
-  assert.equal(PARTY_CONFIG.party.partyTitle, '[TITEL DER FEIER]');
-  assert.equal(PARTY_CONFIG.party.partyDate, '[DATUM DER FEIER]');
+test('Die Feier ist für Britta und Lutz personalisiert', () => {
+  assert.equal(PARTY_CONFIG.party.birthdayPersonName, 'Britta & Lutz');
+  assert.match(PARTY_CONFIG.party.partyTitle, /Silberhochzeit/);
+  assert.match(PARTY_CONFIG.party.partyTitle, /Barmbold/);
+  assert.equal(PARTY_CONFIG.party.partyDate, '2026');
 });
 
-test('Die öffentliche Adresse ist ein neutraler Template-Wert', () => {
-  assert.equal(PARTY_CONFIG.party.publicUrl, 'https://example.com/');
+test('Die öffentliche Adresse ist die Silberhochzeits-Domain', () => {
+  assert.equal(
+    PARTY_CONFIG.party.publicUrl,
+    'https://silberhochzeit-barmbold.ulhorn-webdesign.de/',
+  );
 });
 
 test('Der optionale Absender ist im Template leer', () => {
   assert.equal(PARTY_CONFIG.party.giftedBy, '');
 });
 
-test('Das Template enthält ein gültiges Beispielalter', () => {
-  assert.equal(PARTY_CONFIG.party.age, 18);
+test('Die Jubilaeumszahl ist 25', () => {
+  assert.equal(PARTY_CONFIG.party.age, 25);
 });
 
 test('Alle Texte der Oberfläche sind gefüllt', () => {
@@ -92,20 +96,19 @@ test('Alle Texte der Oberfläche sind gefüllt', () => {
 
 test('Platzhalter in den Texten werden korrekt ersetzt', () => {
   const values = { name: 'Alex', age: 42 };
-  const subline = fillTemplate(PARTY_CONFIG.texts.heroSubline, values);
-  assert.ok(subline.includes('Alex'));
-  assert.ok(!subline.includes('{name}'));
-  assert.ok(!fillTemplate(PARTY_CONFIG.texts.appTitle, values).includes('{age}'));
+  const title = fillTemplate(PARTY_CONFIG.texts.appTitle, values);
+  assert.ok(title.includes('42'));
+  assert.ok(!title.includes('{age}'));
 });
 
 test('Der Datenschutzhinweis hat genau den geforderten Inhalt', () => {
   const { notice, consentLabel, peopleNotice } = PARTY_CONFIG.privacy;
-  assert.match(notice, /ausschließlich für das private Geburtstagsalbum gespeichert/);
+  assert.match(notice, /ausschließlich für das private Silberhochzeits-Album gespeichert/);
   assert.match(notice, /nicht öffentlich sichtbar/);
   assert.match(notice, /nach der Feier gelöscht werden/);
   assert.equal(
     consentLabel,
-    'Ich bin damit einverstanden, dass dieses Foto im privaten Geburtstagsalbum gespeichert wird.',
+    'Ich bin damit einverstanden, dass dieses Foto im privaten Silberhochzeits-Album gespeichert wird.',
   );
   assert.match(peopleNotice, /abgebildeten Personen mit dem Foto einverstanden/);
 });
@@ -189,18 +192,17 @@ test('Jede Mission hat alle Felder in der vorgesehenen Form', () => {
   }
 });
 
-test('Die Beispiel-Missionen aus der Aufgabenstellung sind abgedeckt', () => {
+test('Die Silberhochzeits-Missionen decken wichtige Motive ab', () => {
   const alle = PARTY_CONFIG.missions.map((m) => `${m.title} ${m.description}`).join(' | ');
   for (const stichwort of [
-    'lustigsten Moment',
+    'Britta & Lutz',
     'Gruppenfoto',
-    'neu kennengelernt',
     'Generationen',
     'Outfit',
-    'Albumcover',
-    'Tanzbewegung',
+    'Silber',
+    'Tanzmoment',
     'lange nicht gesehen',
-    'Erinnerung bleiben',
+    '25 Jahre',
   ]) {
     assert.ok(alle.includes(stichwort), `Diese Mission fehlt: "${stichwort}"`);
   }

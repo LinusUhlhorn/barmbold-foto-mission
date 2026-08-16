@@ -1,8 +1,8 @@
 {
-  "name": "foto-mission-app",
+  "name": "barmbold-foto-mission",
   "version": "1.0.0",
   "private": true,
-  "description": "Foto-Mission Web-App fuer eine private Geburtstagsfeier. Statische Anwendung ohne Build-Schritt.",
+  "description": "Foto-Mission zur Silberhochzeit von Britta und Lutz Barmbold.",
   "type": "module",
   "scripts": {
     "setup": "node tools/setup.js",

@@ -17,37 +17,37 @@
 
 export const PARTY_CONFIG = {
   // -----------------------------------------------------
-  // 1. GEBURTSTAGSKIND UND FEIER
+  // 1. JUBELPAAR UND FEIER
   // -----------------------------------------------------
   party: {
     // Vorname, der ueberall in der App auftaucht.
-    birthdayPersonName: '[NAME DES GEBURTSTAGSKINDES]',
-    // Wird u. a. fuer die grosse Zahl im Design verwendet.
-    age: 18,
+    birthdayPersonName: 'Britta & Lutz',
+    // Wird hier als Jubilaeumszahl im Design verwendet.
+    age: 25,
     // Freie Bezeichnung der Feier, erscheint auf der Druckseite.
-    partyTitle: '[TITEL DER FEIER]',
+    partyTitle: 'Silberhochzeit von Britta & Lutz Barmbold',
     // Datum der Feier, erscheint auf der Druckseite und im Album.
-    partyDate: '[DATUM DER FEIER]',
+    partyDate: '2026',
     // Kleiner Hinweis ganz unten auf jeder Seite.
     giftedBy: '',
     // Oeffentliche Adresse der App. Aus GENAU dieser URL wird der QR-Code erzeugt.
     // WICHTIG: Der abschliessende Schraegstrich gehoert dazu.
-    publicUrl: 'https://example.com/',
+    publicUrl: 'https://silberhochzeit-barmbold.ulhorn-webdesign.de/',
   },
 
   // -----------------------------------------------------
   // 2. TEXTE DER APP
   // -----------------------------------------------------
-  // {name} wird automatisch durch den Namen des Geburtstagskindes ersetzt.
-  // {age} wird automatisch durch das Alter ersetzt.
+  // {name} wird automatisch durch den Namen des Jubelpaares ersetzt.
+  // {age} wird automatisch durch die Jubilaeumszahl ersetzt.
   texts: {
-    appTitle: 'LEVEL {age} – FOTO-MISSION',
-    heroSubline: 'Halte einen Moment fest, den {name} nicht vergessen soll.',
+    appTitle: '{age} JAHRE – FOTO-MISSION',
+    heroSubline: 'Schenkt Britta & Lutz Erinnerungen in Bildern.',
     heroExplanation:
-      'Zieh eine zufällige Aufgabe, nimm ein Foto auf und werde Teil des Party-Albums.',
+      'Zieh eine Mission, halte einen besonderen Moment fest und werde Teil ihres Silberhochzeits-Albums.',
     nameLabel: 'Wie heißt du?',
     namePlaceholder: 'Dein Name',
-    nameHelp: 'Nur damit {name} später weiß, von wem das Foto ist.',
+    nameHelp: 'Damit Britta & Lutz später wissen, von wem das Foto ist.',
     startButton: 'Mission ziehen',
 
     drawTitle: 'Deine Mission wird gemischt …',
@@ -73,12 +73,12 @@ export const PARTY_CONFIG = {
       'Die Verbindung ist gerade langsam. Bitte lass die Seite offen – der Upload läuft weiter.',
 
     successTitle: 'Mission erfüllt!',
-    successText: 'Dein Foto ist jetzt Teil von {name}s Party-Album.',
+    successText: 'Dein Foto ist jetzt Teil des Silberhochzeits-Albums von Britta & Lutz.',
     bonusButton: 'Bonus-Mission ziehen',
     doneButton: 'Fertig',
     finishedTitle: 'Danke dir!',
     finishedText:
-      'Du hast deine Foto-Mission abgeschlossen. Genieß den Abend – und mach ruhig weiter Fotos für dich selbst.',
+      'Du hast deine Foto-Mission abgeschlossen. Genieß die Silberhochzeit – und feiert Britta & Lutz gebührend.',
 
     alreadyDoneTitle: 'Du warst schon dabei',
     alreadyDoneText: 'Deine Mission ist bereits im Album gelandet.',
@@ -89,10 +89,10 @@ export const PARTY_CONFIG = {
   // -----------------------------------------------------
   privacy: {
     notice:
-      'Dein Name und dein Foto werden ausschließlich für das private Geburtstagsalbum gespeichert. ' +
+      'Dein Name und dein Foto werden ausschließlich für das private Silberhochzeits-Album gespeichert. ' +
       'Die Bilder sind nicht öffentlich sichtbar und können nach der Feier gelöscht werden.',
     consentLabel:
-      'Ich bin damit einverstanden, dass dieses Foto im privaten Geburtstagsalbum gespeichert wird.',
+      'Ich bin damit einverstanden, dass dieses Foto im privaten Silberhochzeits-Album gespeichert wird.',
     peopleNotice:
       'Bitte stelle sicher, dass die abgebildeten Personen mit dem Foto einverstanden sind.',
   },
@@ -159,15 +159,15 @@ export const PARTY_CONFIG = {
   // -----------------------------------------------------
   theme: {
     colors: {
-      background: '#07060f',
-      backgroundDeep: '#04030a',
-      indigo: '#1b1147',
-      violet: '#4c1d95',
-      magenta: '#c026d3',
-      gold: '#e9c877',
-      goldSoft: '#f6e2b0',
-      text: '#f4f1ff',
-      textMuted: '#a9a3c8',
+      background: '#151719',
+      backgroundDeep: '#090a0b',
+      indigo: '#34383d',
+      violet: '#555b62',
+      magenta: '#a98d6c',
+      gold: '#c8ccd0',
+      goldSoft: '#f2eee5',
+      text: '#f7f5ef',
+      textMuted: '#b9bdc1',
       danger: '#ff6b6b',
       success: '#5ee0a8',
     },
@@ -188,7 +188,7 @@ export const PARTY_CONFIG = {
   // 8. TESTMODUS
   // -----------------------------------------------------
   test: {
-    // Aufruf ueber: https://deine-domain.example/foto-mission/?test=1
+    // Aufruf ueber: https://silberhochzeit-barmbold.ulhorn-webdesign.de/?test=1
     queryParam: 'test',
     // Im Testmodus wird standardmaessig NICHT hochgeladen.
     // Der Gast/Tester muss den Schalter "Test-Upload erlauben" bewusst aktivieren.
@@ -205,7 +205,7 @@ export const PARTY_CONFIG = {
   //   id          eindeutig, wird in der Datenbank gespeichert  (nicht nachtraeglich aendern)
   //   title       kurze Ueberschrift
   //   description was genau fotografiert werden soll
-  //   category    Menschen | Momente | Kreativ | Lustig | Geburtstag | Gruppe | Erinnerung
+  //   category    Jubelpaar | Menschen | Momente | Kreativ | Lustig | Gruppe | Erinnerung
   //   icon        camera | users | heart | sparkles | star | film | music | gift |
   //               cake | moon | zap | clock | eye | smile | aperture | compass
   //   difficulty  leicht | mittel | schwer
@@ -216,8 +216,8 @@ export const PARTY_CONFIG = {
   missions: [
     {
       id: 'mission-01',
-      title: 'Der echte Lachmoment',
-      description: 'Halte einen Moment fest, in dem jemand wirklich lachen muss.',
+      title: 'Das schönste Lachen',
+      description: 'Halte einen Moment fest, in dem Britta oder Lutz von Herzen lachen.',
       category: 'Momente',
       icon: 'smile',
       difficulty: 'leicht',
@@ -225,35 +225,35 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-02',
-      title: 'Der lustigste Moment',
-      description: 'Fotografiere den lustigsten Moment des Abends.',
-      category: 'Lustig',
+      title: 'Mit dem Jubelpaar',
+      description: 'Mach ein gemeinsames Foto mit Britta & Lutz – klassisch oder kreativ.',
+      category: 'Jubelpaar',
       icon: 'zap',
       difficulty: 'leicht',
       active: true,
     },
     {
       id: 'mission-03',
-      title: 'Gemeinsam mit dem Geburtstagskind',
-      description: 'Mache ein kreatives Foto mit {name}.',
-      category: 'Geburtstag',
+      title: 'Ein Blick zwischen zwei Menschen',
+      description: 'Fange einen liebevollen Blick zwischen Britta & Lutz ein.',
+      category: 'Jubelpaar',
       icon: 'gift',
       difficulty: 'mittel',
       active: true,
     },
     {
       id: 'mission-04',
-      title: 'Typisch {name}',
-      description: 'Fotografiere etwas, das typisch für {name} ist.',
-      category: 'Geburtstag',
+      title: 'Typisch Britta & Lutz',
+      description: 'Fotografiere einen Moment oder ein Detail, das einfach typisch für die beiden ist.',
+      category: 'Jubelpaar',
       icon: 'heart',
       difficulty: 'mittel',
       active: true,
     },
     {
       id: 'mission-05',
-      title: 'Die große Runde',
-      description: 'Mache ein Gruppenfoto mit mindestens fünf Personen.',
+      title: 'Die große Gratulantenrunde',
+      description: 'Versammle mindestens fünf Gäste für ein fröhliches Gruppenfoto.',
       category: 'Gruppe',
       icon: 'users',
       difficulty: 'mittel',
@@ -261,8 +261,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-06',
-      title: 'Neu kennengelernt',
-      description: 'Fotografiere jemanden, den du heute neu kennengelernt hast.',
+      title: 'Familie trifft Freunde',
+      description: 'Fotografiere zwei Gäste, die Britta & Lutz aus ganz unterschiedlichen Zeiten kennen.',
       category: 'Menschen',
       icon: 'compass',
       difficulty: 'mittel',
@@ -270,8 +270,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-07',
-      title: 'Das seltsamste Ding',
-      description: 'Fotografiere den ungewöhnlichsten Gegenstand auf der Feier.',
+      title: 'Ein Hauch von Silber',
+      description: 'Finde das schönste silberne Detail auf der Feier und setze es in Szene.',
       category: 'Kreativ',
       icon: 'eye',
       difficulty: 'leicht',
@@ -279,9 +279,9 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-08',
-      title: 'Unerklärlich',
+      title: 'Wie vor 25 Jahren',
       description:
-        'Halte einen Moment fest, den morgen vermutlich niemand mehr erklären kann.',
+        'Stellt mit Gästen eine klassische Hochzeitsfoto-Pose nach – gern mit einem Augenzwinkern.',
       category: 'Lustig',
       icon: 'moon',
       difficulty: 'mittel',
@@ -289,8 +289,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-09',
-      title: 'Die beste Bewegung',
-      description: 'Fotografiere die beste Tanzbewegung des Abends.',
+      title: 'Tanzfläche frei',
+      description: 'Fotografiere den schönsten oder schwungvollsten Tanzmoment des Abends.',
       category: 'Momente',
       icon: 'music',
       difficulty: 'mittel',
@@ -299,7 +299,7 @@ export const PARTY_CONFIG = {
     {
       id: 'mission-10',
       title: 'Drei Generationen',
-      description: 'Mache ein Bild, auf dem drei Generationen zu sehen sind.',
+      description: 'Bring drei Generationen für ein gemeinsames Erinnerungsfoto zusammen.',
       category: 'Menschen',
       icon: 'users',
       difficulty: 'schwer',
@@ -307,8 +307,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-11',
-      title: 'Best Dressed',
-      description: 'Fotografiere das beste Outfit des Abends.',
+      title: 'Festlich herausgeputzt',
+      description: 'Fotografiere ein besonders festliches Outfit oder ein schönes Accessoire.',
       category: 'Menschen',
       icon: 'star',
       difficulty: 'leicht',
@@ -316,8 +316,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-12',
-      title: 'Albumcover',
-      description: 'Mache ein Foto, das aussieht wie das Cover eines Musikalbums.',
+      title: 'Das Jubiläumscover',
+      description: 'Inszeniere ein Foto, das als Titelbild für das Silberhochzeits-Album taugt.',
       category: 'Kreativ',
       icon: 'music',
       difficulty: 'schwer',
@@ -325,9 +325,9 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-13',
-      title: 'Vorher ist noch alles ruhig',
+      title: 'Ein stiller Moment',
       description:
-        'Fotografiere einen Moment, bevor es richtig losgeht – wenn noch alles ruhig ist.',
+        'Fange zwischen all dem Feiern einen ruhigen, innigen Augenblick ein.',
       category: 'Erinnerung',
       icon: 'clock',
       difficulty: 'leicht',
@@ -336,7 +336,7 @@ export const PARTY_CONFIG = {
     {
       id: 'mission-14',
       title: 'Lange nicht gesehen',
-      description: 'Mache ein Foto mit jemandem, den du lange nicht gesehen hast.',
+      description: 'Mach ein Wiedersehensfoto mit jemandem, den du lange nicht gesehen hast.',
       category: 'Menschen',
       icon: 'heart',
       difficulty: 'mittel',
@@ -344,8 +344,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-15',
-      title: 'Das muss bleiben',
-      description: 'Fotografiere etwas, das unbedingt in Erinnerung bleiben sollte.',
+      title: 'Für die nächsten 25 Jahre',
+      description: 'Fotografiere einen Moment, an den sich Britta & Lutz noch lange erinnern sollen.',
       category: 'Erinnerung',
       icon: 'star',
       difficulty: 'leicht',
@@ -353,9 +353,9 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-16',
-      title: 'Der Tisch als Stillleben',
+      title: 'Festtafel als Stillleben',
       description:
-        'Fotografiere einen Tisch so, als wäre es ein Gemälde.',
+        'Fotografiere Tischschmuck, Gläser oder Ringe so, als wäre die Szene ein Gemälde.',
       category: 'Kreativ',
       icon: 'aperture',
       difficulty: 'mittel',
@@ -363,8 +363,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-17',
-      title: 'Licht und Schatten',
-      description: 'Finde das schönste Licht auf der Feier und fotografiere jemanden darin.',
+      title: 'Im schönsten Licht',
+      description: 'Finde das schönste Licht auf der Feier und fotografiere Britta, Lutz oder einen Gast darin.',
       category: 'Kreativ',
       icon: 'sparkles',
       difficulty: 'mittel',
@@ -372,7 +372,7 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-18',
-      title: 'Der heimliche Held',
+      title: 'Die helfende Hand',
       description:
         'Fotografiere jemanden, der heute im Hintergrund dafür sorgt, dass alles läuft.',
       category: 'Menschen',
@@ -383,7 +383,7 @@ export const PARTY_CONFIG = {
     {
       id: 'mission-19',
       title: 'Zwei, die zusammengehören',
-      description: 'Fotografiere zwei Menschen, die offensichtlich zusammengehören.',
+      description: 'Fotografiere ein Paar oder zwei Menschen, die schon viel miteinander erlebt haben.',
       category: 'Menschen',
       icon: 'heart',
       difficulty: 'leicht',
@@ -391,8 +391,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'mission-20',
-      title: 'Der Blick von oben',
-      description: 'Mache ein Foto von oben herab.',
+      title: '25 mit Händen',
+      description: 'Stellt gemeinsam die Zahl 25 dar – mit Händen, Menschen oder Dingen.',
       category: 'Kreativ',
       icon: 'eye',
       difficulty: 'mittel',
@@ -407,9 +407,9 @@ export const PARTY_CONFIG = {
   bonusMissions: [
     {
       id: 'bonus-01',
-      title: 'Bonus: Das Detail',
+      title: 'Bonus: Ringe & Hände',
       description:
-        'Fotografiere ein winziges Detail, das sonst niemand bemerkt – aber vieles über den Abend sagt.',
+        'Fotografiere Hände oder Ringe so, dass man 25 gemeinsame Jahre darin erahnen kann.',
       category: 'Erinnerung',
       icon: 'eye',
       difficulty: 'mittel',
@@ -417,8 +417,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'bonus-02',
-      title: 'Bonus: Selbstauslöser',
-      description: 'Mach ein Selfie mit mindestens drei anderen Gästen. Ja, wirklich alle drauf.',
+      title: 'Bonus: Selfie fürs Jubelpaar',
+      description: 'Mach ein fröhliches Selfie mit mindestens drei anderen Gästen als Gruß an Britta & Lutz.',
       category: 'Gruppe',
       icon: 'camera',
       difficulty: 'mittel',
@@ -426,8 +426,8 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'bonus-03',
-      title: 'Bonus: Der Beweis',
-      description: 'Fotografiere etwas, das beweist, dass dieser Abend wirklich stattgefunden hat.',
+      title: 'Bonus: 25 Jahre in einem Bild',
+      description: 'Finde ein Motiv, das für dich 25 Jahre Zusammenhalt erzählt.',
       category: 'Erinnerung',
       icon: 'clock',
       difficulty: 'leicht',
@@ -435,18 +435,18 @@ export const PARTY_CONFIG = {
     },
     {
       id: 'bonus-04',
-      title: 'Bonus: Ein Blick für {name}',
-      description: 'Fotografiere etwas, von dem du glaubst, dass {name} es später sehen möchte.',
-      category: 'Geburtstag',
+      title: 'Bonus: Ein Blick für Britta & Lutz',
+      description: 'Fotografiere etwas, das die beiden während der Feier vielleicht selbst nicht sehen.',
+      category: 'Jubelpaar',
       icon: 'gift',
       difficulty: 'mittel',
       active: true,
     },
     {
       id: 'bonus-05',
-      title: 'Bonus: Unscharf, aber richtig',
+      title: 'Bonus: Bewegung im Glück',
       description:
-        'Mach bewusst ein leicht unscharfes Bewegungsfoto – Hauptsache die Stimmung passt.',
+        'Mach bewusst ein leicht unscharfes Bewegungsfoto – Hauptsache, die Feierlaune ist zu spüren.',
       category: 'Kreativ',
       icon: 'aperture',
       difficulty: 'schwer',
