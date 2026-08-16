@@ -30,7 +30,7 @@ Ohne Supabase läuft die Seite sicher im Demo-Modus; es wird nichts hochgeladen.
 
 5. `npm run setup` erneut öffnen und Project URL sowie den öffentlichen Anon-/Publishable-Key eintragen.
 
-Niemals einen `service_role`-Key oder ein Passwort in die Konfiguration schreiben. Der Storage-Bucket `party-photos` muss privat bleiben. Das private Album liegt lokal unter `http://localhost:5173/album/`.
+Niemals einen `service_role`-Key oder ein Passwort in die Konfiguration schreiben. Der Storage-Bucket `party-photos` muss privat bleiben. Galerie und Administration liegen unter `/album/`. Ohne Supabase erscheint dort eine leere Vorschau mit allen Missionskategorien; nach der Einrichtung schützt die Admin-Anmeldung die echten Fotos.
 
 ## Veröffentlichen mit GitHub Actions
 

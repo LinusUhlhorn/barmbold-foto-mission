@@ -236,6 +236,15 @@ function buildFilterOptions() {
   const missions = new Map();
   const categories = new Set();
 
+  // Die Galerie soll ihre Filter schon zeigen, bevor das erste Foto
+  // hochgeladen wurde. Deshalb kommen Missionen und Kategorien zuerst aus
+  // der zentralen Konfiguration und werden spaeter um Datenbankwerte ergaenzt.
+  for (const mission of [...config.missions, ...config.bonusMissions]) {
+    if (!mission || mission.active === false) continue;
+    if (mission.id) missions.set(mission.id, mission.title || mission.id);
+    if (mission.category) categories.add(mission.category);
+  }
+
   for (const row of state.rows) {
     if (row.mission_id) missions.set(row.mission_id, row.mission_title || row.mission_id);
     if (row.mission_category) categories.add(row.mission_category);
@@ -855,11 +864,15 @@ async function init() {
   bindEvents();
 
   if (!supabaseReady) {
-    showLogin();
+    // Ohne Datenbank zeigen wir bereits die leere Galerie als Vorschau.
+    // Verwaltungsfunktionen bleiben ausgeblendet, bis Supabase eingerichtet ist.
+    showAlbum();
+    for (const node of $$('[data-admin-only]')) node.hidden = true;
+    buildFilterOptions();
+    applyFilters();
     showNotice(
-      $('[data-login-error]'),
-      'Supabase ist noch nicht eingerichtet. Trag zuerst URL und Anon-Key in config/party-config.js ein ' +
-        'und führe supabase/setup.sql aus.',
+      $('[data-album-error]'),
+      'Die Galerie ist bereit, aber noch nicht mit der Fotodatenbank verbunden. Sobald Supabase eingerichtet ist, erscheinen hochgeladene Bilder hier.',
       'warn',
     );
     return;

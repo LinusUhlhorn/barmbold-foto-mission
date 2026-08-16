@@ -88,7 +88,7 @@
             <h1 class="album-header__title" data-album-title>Privates Silberhochzeits-Album</h1>
             <p class="album-header__meta" data-album-meta></p>
           </div>
-          <div class="album-actions no-print">
+          <div class="album-actions no-print" data-admin-only>
             <div class="viewswitch" role="tablist" aria-label="Ansicht wählen">
               <button type="button" role="tab" aria-selected="true" data-view-button="grid">
                 Raster
@@ -136,7 +136,7 @@
               <option value="random">Zufällig</option>
             </select>
           </div>
-          <div class="field" style="grid-column: 1 / -1">
+          <div class="field" style="grid-column: 1 / -1" data-admin-only>
             <label class="checkbox" style="margin-top: 0">
               <input type="checkbox" data-filter-test />
               <span class="checkbox__text">Nur Testfotos anzeigen</span>
@@ -163,7 +163,7 @@
 
         <div class="empty" data-empty hidden></div>
 
-        <div class="selectbar no-print" data-selectbar hidden>
+        <div class="selectbar no-print" data-selectbar data-admin-only hidden>
           <span class="selectbar__count" data-select-count></span>
           <button type="button" class="btn btn--small btn--secondary" data-select-all>
             Alle auswählen
@@ -179,7 +179,7 @@
           </button>
         </div>
 
-        <div class="btn-row btn-row--inline no-print">
+        <div class="btn-row btn-row--inline no-print" data-admin-only>
           <button type="button" class="btn btn--secondary btn--small" data-download-all>
             Alle Fotos als ZIP
           </button>
@@ -193,8 +193,8 @@
 
         <footer class="footnote no-print">
           <p>
-            Die Bilder werden über kurzlebige, signierte Links geladen. Es gibt keine
-            dauerhaft öffentliche Adresse zu den Fotos.
+            Die Bilder werden nach der Einrichtung geschützt über kurzlebige,
+            signierte Links geladen. Es gibt keine dauerhaft öffentliche Bildadresse.
           </p>
         </footer>
       </main>
