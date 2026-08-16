@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Privates Party-Album</title>
+    <meta name="theme-color" content="#07060f" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="../assets/css/base.css" />
+    <link rel="stylesheet" href="../assets/css/album.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#album-inhalt">Zum Inhalt springen</a>
+
+    <div class="backdrop" aria-hidden="true">
+      <div class="backdrop__glow backdrop__glow--a"></div>
+      <div class="backdrop__glow backdrop__glow--b"></div>
+      <div class="backdrop__number" data-big-number>30</div>
+      <div class="backdrop__grain" data-grain></div>
+    </div>
+
+    <div class="album-shell">
+      <!-- ==========================================================
+           ANMELDUNG
+           ========================================================== -->
+      <section class="login" data-view="login">
+        <div class="card card--gold">
+          <div class="login__lock">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="6.5" y="10.5" width="11" height="9" rx="1.5" />
+              <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke-linecap="round" />
+            </svg>
+          </div>
+
+          <p class="eyebrow">Privater Bereich</p>
+          <h1 class="headline headline--gradient">Party-Album</h1>
+          <p class="subline">
+            Dieser Bereich ist nur für dich. Melde dich mit deinem Supabase-Zugang an,
+            um alle Fotos des Abends zu sehen.
+          </p>
+
+          <form data-login-form novalidate>
+            <div class="field">
+              <label class="field__label" for="admin-email">E-Mail</label>
+              <input
+                class="field__input"
+                id="admin-email"
+                type="email"
+                autocomplete="username"
+                inputmode="email"
+                required
+              />
+            </div>
+            <div class="field">
+              <label class="field__label" for="admin-password">Passwort</label>
+              <input
+                class="field__input"
+                id="admin-password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+
+            <div class="btn-row">
+              <button type="submit" class="btn btn--primary" data-login-button>Anmelden</button>
+            </div>
+          </form>
+
+          <div class="notice notice--error" style="margin-top: var(--sp-4)" data-login-error hidden></div>
+
+          <p class="hint" style="margin-top: var(--sp-4)">
+            Das Passwort wird ausschließlich an Supabase gesendet und niemals
+            im Browser oder im Projekt gespeichert.
+          </p>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           ALBUM
+           ========================================================== -->
+      <main id="album-inhalt" data-view="album" hidden>
+        <header class="album-header">
+          <div>
+            <h1 class="album-header__title" data-album-title>Privates Party-Album</h1>
+            <p class="album-header__meta" data-album-meta></p>
+          </div>
+          <div class="album-actions no-print">
+            <div class="viewswitch" role="tablist" aria-label="Ansicht wählen">
+              <button type="button" role="tab" aria-selected="true" data-view-button="grid">
+                Raster
+              </button>
+              <button type="button" role="tab" aria-selected="false" data-view-button="timeline">
+                Geschichte des Abends
+              </button>
+              <button type="button" role="tab" aria-selected="false" data-view-button="sheet">
+                Kontaktbogen
+              </button>
+            </div>
+            <button type="button" class="btn btn--small btn--secondary" data-slideshow>
+              Diashow
+            </button>
+            <button type="button" class="btn btn--small btn--secondary" data-reload>
+              Neu laden
+            </button>
+            <button type="button" class="btn btn--small btn--ghost" data-logout>Abmelden</button>
+          </div>
+        </header>
+
+        <div class="filters no-print">
+          <div class="field">
+            <label class="field__label" for="filter-search">Name suchen</label>
+            <input id="filter-search" type="search" placeholder="z. B. Anna" data-filter-search />
+          </div>
+          <div class="field">
+            <label class="field__label" for="filter-mission">Mission</label>
+            <select id="filter-mission" data-filter-mission>
+              <option value="">Alle Missionen</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label" for="filter-category">Kategorie</label>
+            <select id="filter-category" data-filter-category>
+              <option value="">Alle Kategorien</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field__label" for="filter-sort">Sortierung</label>
+            <select id="filter-sort" data-filter-sort>
+              <option value="asc">Chronologisch (älteste zuerst)</option>
+              <option value="desc">Chronologisch (neueste zuerst)</option>
+              <option value="name">Nach Name</option>
+              <option value="random">Zufällig</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column: 1 / -1">
+            <label class="checkbox" style="margin-top: 0">
+              <input type="checkbox" data-filter-test />
+              <span class="checkbox__text">Nur Testfotos anzeigen</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="notice notice--error no-print" style="margin-bottom: var(--sp-4)" data-album-error hidden></div>
+
+        <!-- Raster -->
+        <div class="grid" data-grid></div>
+
+        <!-- Zeitleiste -->
+        <div class="timeline" data-timeline hidden></div>
+
+        <!-- Kontaktbogen -->
+        <div class="contactsheet" data-sheet hidden>
+          <div class="contactsheet__head">
+            <h2 data-sheet-title>Kontaktbogen</h2>
+            <p data-sheet-meta></p>
+          </div>
+          <div class="contactsheet__grid" data-sheet-grid></div>
+        </div>
+
+        <div class="empty" data-empty hidden></div>
+
+        <div class="selectbar no-print" data-selectbar hidden>
+          <span class="selectbar__count" data-select-count></span>
+          <button type="button" class="btn btn--small btn--secondary" data-select-all>
+            Alle auswählen
+          </button>
+          <button type="button" class="btn btn--small btn--secondary" data-select-none>
+            Auswahl aufheben
+          </button>
+          <button type="button" class="btn btn--small btn--secondary" data-download-selected>
+            Auswahl herunterladen
+          </button>
+          <button type="button" class="btn btn--small btn--danger" data-delete-selected>
+            Auswahl löschen
+          </button>
+        </div>
+
+        <div class="btn-row btn-row--inline no-print">
+          <button type="button" class="btn btn--secondary btn--small" data-download-all>
+            Alle Fotos als ZIP
+          </button>
+          <button type="button" class="btn btn--secondary btn--small" data-print-sheet>
+            Kontaktbogen drucken
+          </button>
+          <button type="button" class="btn btn--danger btn--small" data-delete-tests>
+            Alle Testfotos löschen
+          </button>
+        </div>
+
+        <footer class="footnote no-print">
+          <p>
+            Die Bilder werden über kurzlebige, signierte Links geladen. Es gibt keine
+            dauerhaft öffentliche Adresse zu den Fotos.
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <!-- ==========================================================
+         VOLLBILD
+         ========================================================== -->
+    <div
+      class="lightbox"
+      data-lightbox
+      role="dialog"
+      aria-modal="true"
+      aria-label="Foto in voller Größe"
+    >
+      <div class="lightbox__bar">
+        <span class="hint" data-lightbox-position></span>
+        <button type="button" class="btn btn--icon" data-lightbox-close>
+          <span class="visually-hidden">Vollbild schließen</span>
+        </button>
+      </div>
+
+      <div class="lightbox__stage">
+        <button type="button" class="lightbox__nav lightbox__nav--prev" data-lightbox-prev>
+          <span class="visually-hidden">Vorheriges Foto</span>
+        </button>
+        <img class="lightbox__image" data-lightbox-image alt="" />
+        <button type="button" class="lightbox__nav lightbox__nav--next" data-lightbox-next>
+          <span class="visually-hidden">Nächstes Foto</span>
+        </button>
+      </div>
+
+      <div class="lightbox__caption">
+        <strong data-lightbox-name></strong>
+        <span class="lightbox__meta" data-lightbox-meta></span>
+      </div>
+
+      <div class="lightbox__tools">
+        <button type="button" class="btn btn--small btn--secondary" data-lightbox-download>
+          Herunterladen
+        </button>
+        <button type="button" class="btn btn--small btn--danger" data-lightbox-delete>
+          Dieses Foto löschen
+        </button>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         SICHERHEITSABFRAGE
+         ========================================================== -->
+    <div class="dialog" data-dialog role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <div class="card dialog__panel">
+        <h2 class="headline" id="dialog-title" data-dialog-title></h2>
+        <p class="subline" data-dialog-text></p>
+        <div class="notice notice--warn" style="margin-top: var(--sp-4)">
+          <span>Das Löschen kann nicht rückgängig gemacht werden.</span>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn--danger" data-dialog-confirm>Endgültig löschen</button>
+          <button type="button" class="btn btn--secondary" data-dialog-cancel>Abbrechen</button>
+        </div>
+        <div class="notice notice--error" style="margin-top: var(--sp-4)" data-dialog-error hidden></div>
+      </div>
+    </div>
+
+    <p class="visually-hidden" role="status" aria-live="polite" data-live></p>
+
+    <noscript>
+      <div class="album-shell">
+        <div class="card">
+          <h1 class="headline">JavaScript wird benötigt</h1>
+          <p class="subline">Bitte aktiviere JavaScript, um das Album zu öffnen.</p>
+        </div>
+      </div>
+    </noscript>
+
+    <script type="module" src="../assets/js/album.js"></script>
+  </body>
+</html>

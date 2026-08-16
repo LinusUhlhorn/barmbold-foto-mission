@@ -1,0 +1,4 @@
+# Diese Seite ist ein privates Geburtstagsgeschenk.
+# Sie soll in keiner Suchmaschine auftauchen.
+User-agent: *
+Disallow: /

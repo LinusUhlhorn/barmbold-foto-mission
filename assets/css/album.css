@@ -1,0 +1,606 @@
+/* =========================================================================
+   PRIVATES ALBUM
+   Soll sich wie ein Fotoalbum anfühlen, nicht wie eine Verwaltungsoberfläche.
+   ========================================================================= */
+
+.album-shell {
+  max-width: 82rem;
+  margin: 0 auto;
+  padding: var(--sp-4) var(--sp-4) var(--sp-7);
+  min-height: 100svh;
+}
+
+/* ---------- Anmeldung ---------- */
+
+.login {
+  max-width: 26rem;
+  margin: 8svh auto 0;
+}
+
+.login__lock {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--sp-4);
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: var(--c-gold);
+  background: rgba(233, 200, 119, 0.12);
+  border: 1px solid var(--c-border-gold);
+}
+
+/* ---------- Kopfbereich ---------- */
+
+.album-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.album-header__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.album-header__meta {
+  font-size: 0.84rem;
+  color: var(--c-text-muted);
+  margin-top: 2px;
+}
+
+.album-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ---------- Ansichtswechsel ---------- */
+
+.viewswitch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+}
+
+.viewswitch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.viewswitch button[aria-selected='true'] {
+  background: var(--c-surface-strong);
+  color: var(--c-gold-soft);
+}
+
+/* ---------- Filterleiste ---------- */
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+}
+
+@media (min-width: 46rem) {
+  .filters {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    align-items: end;
+  }
+}
+
+.filters .field {
+  margin-top: 0;
+}
+
+/* Ankreuzfelder sind bewusst ausgenommen - sie sollen nicht die volle
+   Breite einnehmen, sonst rutscht ihre Beschriftung an den rechten Rand. */
+.filters select,
+.filters input:not([type='checkbox']) {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  color: var(--c-text);
+  font-size: 16px;
+}
+
+/* Der Filter "Nur Testfotos" braucht nur so viel Platz wie sein Text. */
+.filters .checkbox {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.filters select {
+  /* Ausklappliste im Browser dunkel halten */
+  color-scheme: dark;
+}
+
+/* ---------- Auswahlleiste ---------- */
+
+.selectbar {
+  position: sticky;
+  bottom: var(--sp-3);
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-top: var(--sp-4);
+  background: rgba(12, 9, 26, 0.94);
+  border: 1px solid var(--c-border-gold);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.selectbar__count {
+  font-weight: 700;
+  color: var(--c-gold-soft);
+  margin-right: auto;
+}
+
+/* =========================================================================
+   RASTER (Masonry über CSS-Spalten)
+   ========================================================================= */
+
+.grid {
+  columns: 2;
+  column-gap: var(--sp-3);
+}
+
+@media (min-width: 40rem) {
+  .grid {
+    columns: 3;
+  }
+}
+
+@media (min-width: 62rem) {
+  .grid {
+    columns: 4;
+  }
+}
+
+.photo {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: var(--sp-3);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--c-border);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.photo:hover,
+.photo:focus-within {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-soft);
+}
+
+.photo.is-selected {
+  outline: 3px solid var(--c-gold);
+  outline-offset: 2px;
+}
+
+.photo__button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.photo__image {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.photo__placeholder {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+}
+
+.photo__info {
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  text-align: left;
+}
+
+.photo__name {
+  font-weight: 650;
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.photo__mission {
+  font-size: 0.78rem;
+  color: var(--c-text-muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.photo__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--sp-2);
+}
+
+.photo__badges .tag {
+  font-size: 0.6rem;
+  padding: 2px 8px;
+}
+
+/* Die Auswahl bekommt eine großzügige Tippfläche (mindestens 44 x 44 Pixel),
+   auch wenn das Kästchen selbst kleiner aussieht. */
+.photo__select {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 12px;
+  background: rgba(4, 3, 10, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.photo__select:has(input:focus-visible) {
+  outline: 3px solid var(--c-gold);
+  outline-offset: 2px;
+}
+
+.photo__check {
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--c-gold);
+}
+
+.empty {
+  padding: var(--sp-7) var(--sp-4);
+  text-align: center;
+  color: var(--c-text-muted);
+}
+
+/* =========================================================================
+   VOLLBILD (Lightbox)
+   ========================================================================= */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  background: rgba(4, 3, 10, 0.97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding:
+    calc(env(safe-area-inset-top) + var(--sp-3)) var(--sp-3)
+    calc(env(safe-area-inset-bottom) + var(--sp-3));
+}
+
+.lightbox.is-open {
+  display: flex;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.lightbox__stage {
+  flex: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  animation: lightbox-in 0.3s var(--ease) both;
+}
+
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--touch);
+  height: var(--touch);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--c-border);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.lightbox__nav--prev {
+  left: 0;
+}
+
+.lightbox__nav--next {
+  right: 0;
+}
+
+.lightbox__caption {
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.lightbox__caption strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+}
+
+.lightbox__meta {
+  color: var(--c-text-muted);
+  font-size: 0.82rem;
+}
+
+.lightbox__tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+/* =========================================================================
+   „DIE GESCHICHTE DES ABENDS“ (Zeitleiste)
+   ========================================================================= */
+
+.timeline {
+  position: relative;
+  padding-left: var(--sp-5);
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--c-border-gold) 8%,
+    var(--c-magenta) 55%,
+    transparent
+  );
+}
+
+.timeline__entry {
+  position: relative;
+  margin-bottom: var(--sp-5);
+  animation: timeline-in 0.5s var(--ease) both;
+}
+
+@keyframes timeline-in {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.timeline__dot {
+  position: absolute;
+  left: calc(var(--sp-5) * -1 + 4px);
+  top: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c-gold);
+  box-shadow: 0 0 0 4px rgba(233, 200, 119, 0.18);
+}
+
+.timeline__time {
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+  margin-bottom: var(--sp-2);
+}
+
+.timeline__card {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+}
+
+.timeline__thumb {
+  flex: 0 0 auto;
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.timeline__body {
+  min-width: 0;
+}
+
+/* =========================================================================
+   KONTAKTBOGEN (druckfreundlich)
+   ========================================================================= */
+
+.contactsheet {
+  background: #fff;
+  color: #14121c;
+  padding: var(--sp-5);
+  border-radius: var(--radius);
+}
+
+.contactsheet__head {
+  text-align: center;
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid #c9c4d8;
+}
+
+.contactsheet__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--sp-3);
+}
+
+.contactsheet__item {
+  break-inside: avoid;
+  text-align: center;
+}
+
+.contactsheet__item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid #d9d5e4;
+  background: #f1eff6;
+}
+
+.contactsheet__item figcaption {
+  margin-top: 4px;
+  font-size: 0.62rem;
+  line-height: 1.35;
+  color: #494259;
+}
+
+/* ---------- Sicherheitsabfrage ---------- */
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: none;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgba(4, 3, 10, 0.85);
+}
+
+.dialog.is-open {
+  display: grid;
+}
+
+.dialog__panel {
+  width: min(28rem, 100%);
+  max-height: 86svh;
+  overflow-y: auto;
+}
+
+/* =========================================================================
+   DRUCKANSICHT DES ALBUMS
+   ========================================================================= */
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .backdrop,
+  .album-header,
+  .filters,
+  .selectbar,
+  .viewswitch,
+  .album-actions,
+  .lightbox,
+  .dialog,
+  .footnote,
+  .no-print {
+    display: none !important;
+  }
+
+  .album-shell {
+    padding: 0;
+    max-width: none;
+  }
+
+  .contactsheet {
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .contactsheet__grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5mm;
+  }
+
+  .contactsheet__item img {
+    border-color: #999;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

@@ -1,0 +1,117 @@
+name: Deploy zur Webseite (FTP)
+
+# Der Upload läuft bei jedem Push auf "main".
+# Über "Actions -> Deploy zur Webseite (FTP) -> Run workflow" lässt er sich
+# auch von Hand starten.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Es soll immer nur ein Upload gleichzeitig laufen.
+concurrency:
+  group: ftp-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Erst prüfen: Tests und Produktions-Build müssen fehlerfrei durchlaufen.
+  #    Nur wenn das klappt, wird überhaupt hochgeladen.
+  # ---------------------------------------------------------------------------
+  test:
+    name: Tests und Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      # Node 22 ist Pflicht: Erst ab dieser Version kann der eingebaute
+      # Testlauf das Muster "tests/*.test.js" selbst auflösen.
+      # Die Version muss zu "engines" in der package.json passen -
+      # tests/deploy.test.js vergleicht beides.
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Tests ausführen
+        run: npm test
+
+      - name: Produktions-Build prüfen
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 2. Hochladen auf den Webspace.
+  #
+  #    Die App ist eine statische Seite ohne Build-Schritt, deshalb werden die
+  #    Dateien direkt aus dem Projektordner übertragen. Alles, was nicht auf den
+  #    Webserver gehört, steht in der exclude-Liste unten.
+  #
+  #    Die Zugangsdaten kommen ausschließlich aus den GitHub-Secrets. Sie werden
+  #    nie ausgegeben und stehen nirgendwo im Quellcode.
+  #    Einzurichten unter: Settings -> Secrets and variables -> Actions
+  #      FTP_SERVER    z. B. ftp.dein-hoster.de
+  #      FTP_USERNAME  dein FTP-Benutzername
+  #      FTP_PASSWORD  dein FTP-Passwort
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: FTP-Upload
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode holen
+        uses: actions/checkout@v4
+
+      - name: Auf den Webserver übertragen
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+
+          # Quelle: der Projektordner. Der abschließende Schrägstrich ist wichtig.
+          local-dir: ./
+
+          # Zielordner auf dem Webserver.
+          # Fuer eine App im Wurzelverzeichnis bleibt dieser Wert "./".
+          # Fuer https://example.com/foto-mission/ hier "./foto-mission/"
+          # eintragen. Der Pfad muss zu party.publicUrl passen.
+          server-dir: ./
+
+          # Vorhandene Dateien auf dem Server, die hier nicht vorkommen, werden
+          # NICHT gelöscht. So bleibt alles unangetastet, was schon dort liegt.
+          dangerous-clean-slate: false
+
+          # Diese Liste muss mit tools/deploy-manifest.js übereinstimmen.
+          # Der Test tests/deploy.test.js prüft das automatisch.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/.claude/**
+            **/tools/**
+            **/tests/**
+            **/dist/**
+            **/package.json
+            **/package-lock.json
+            **/README.md
+            **/LICENSE
+            **/.env
+            **/.env.*
+            **/*.local
+            **/supabase/**
+            **/.DS_Store
+            **/Thumbs.db
+
+      - name: Hinweis
+        run: |
+          echo "Upload abgeschlossen."
+          echo "Bitte prüfen:"
+          echo "  /             -> Foto-Mission"
+          echo "  /album/       -> privates Album"
+          echo "  /qr-print.html -> Druckseite mit QR-Code"

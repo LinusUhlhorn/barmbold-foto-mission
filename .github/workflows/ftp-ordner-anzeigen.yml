@@ -1,0 +1,72 @@
+name: FTP-Ordner anzeigen
+
+# Dieser Workflow lädt NICHTS hoch und ändert NICHTS.
+# Er zeigt nur, welche Ordner auf dem FTP-Server liegen - damit man weiß,
+# was bei "server-dir" in deploy.yml eingetragen werden muss.
+#
+# Starten: Actions -> "FTP-Ordner anzeigen" -> "Run workflow"
+#
+# Die Zugangsdaten kommen aus denselben Secrets wie beim Deployment und
+# werden von GitHub in der Ausgabe automatisch unkenntlich gemacht.
+# Ausgegeben werden ausschließlich Ordner- und Dateinamen.
+
+on:
+  workflow_dispatch:
+    inputs:
+      unterordner:
+        description: 'Optional: Unterordner, der zusätzlich aufgelistet werden soll'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  auflisten:
+    name: Verzeichnisse auflisten
+    runs-on: ubuntu-latest
+    steps:
+      - name: FTP-Verzeichnisse lesen
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          UNTERORDNER: ${{ inputs.unterordner }}
+        run: |
+          set -u
+          # Hilfsfunktion: einen Pfad auflisten, ohne dabei etwas zu verändern.
+          liste() {
+            pfad="$1"
+            echo ""
+            echo "=============================================="
+            echo "  $pfad"
+            echo "=============================================="
+            curl --silent --show-error --list-only --connect-timeout 25 --max-time 60 \
+                 --user "$FTP_USERNAME:$FTP_PASSWORD" \
+                 "ftp://$FTP_SERVER$pfad" 2>&1 | head -60 || echo "  (nicht lesbar)"
+          }
+
+          liste "/"
+
+          # Zweite Ebene: die obersten Ordner einmal hineinschauen.
+          for eintrag in $(curl --silent --list-only --connect-timeout 25 --max-time 60 \
+                            --user "$FTP_USERNAME:$FTP_PASSWORD" \
+                            "ftp://$FTP_SERVER/" 2>/dev/null | head -12); do
+            case "$eintrag" in
+              .|..|"") continue ;;
+            esac
+            liste "/$eintrag/"
+          done
+
+          if [ -n "$UNTERORDNER" ]; then
+            liste "/$UNTERORDNER/"
+          fi
+
+          echo ""
+          echo "=============================================="
+          echo "  Was du damit machst"
+          echo "=============================================="
+          echo "Suche den Ordner, in dem die Website von uhlhorn-vorschau.de liegt."
+          echo "Darin (oder darunter) gehört der Ordner 'simon'."
+          echo "Diesen Pfad trägst du in .github/workflows/deploy.yml bei"
+          echo "'server-dir' ein, zum Beispiel:  server-dir: ./htdocs/simon/"

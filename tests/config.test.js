@@ -1,0 +1,207 @@
+// Prüft die zentrale Konfigurationsdatei.
+// Wer hier etwas ändert, merkt sofort, wenn ein Pflichtfeld fehlt.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { PARTY_CONFIG } from '../config/party-config.js';
+import defaultExport from '../config/party-config.js';
+import { fillTemplate } from '../assets/js/lib/text.js';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const CONFIG_SOURCE = fs.readFileSync(path.join(ROOT, 'config', 'party-config.js'), 'utf8');
+
+test('Die Datei beginnt mit dem deutlich sichtbaren Hinweis', () => {
+  const kopf = CONFIG_SOURCE.split('\n').slice(0, 4).join('\n');
+  assert.match(kopf, /=======================================================/);
+  assert.match(kopf, /FOTO-MISSION TEMPLATE/);
+});
+
+test('Die Konfiguration ist auch als Standard-Export verfügbar', () => {
+  assert.equal(defaultExport, PARTY_CONFIG);
+});
+
+test('Alle Hauptbereiche sind vorhanden', () => {
+  for (const key of [
+    'party',
+    'texts',
+    'privacy',
+    'limits',
+    'image',
+    'supabase',
+    'theme',
+    'test',
+    'missions',
+    'bonusMissions',
+  ]) {
+    assert.ok(PARTY_CONFIG[key], `Bereich fehlt: ${key}`);
+  }
+});
+
+test('Unbekannte persönliche Angaben stehen als erkennbarer Platzhalter drin', () => {
+  assert.equal(PARTY_CONFIG.party.birthdayPersonName, '[NAME DES GEBURTSTAGSKINDES]');
+  assert.equal(PARTY_CONFIG.party.partyTitle, '[TITEL DER FEIER]');
+  assert.equal(PARTY_CONFIG.party.partyDate, '[DATUM DER FEIER]');
+});
+
+test('Die öffentliche Adresse ist ein neutraler Template-Wert', () => {
+  assert.equal(PARTY_CONFIG.party.publicUrl, 'https://example.com/');
+});
+
+test('Der optionale Absender ist im Template leer', () => {
+  assert.equal(PARTY_CONFIG.party.giftedBy, '');
+});
+
+test('Das Template enthält ein gültiges Beispielalter', () => {
+  assert.equal(PARTY_CONFIG.party.age, 18);
+});
+
+test('Alle Texte der Oberfläche sind gefüllt', () => {
+  for (const [key, value] of Object.entries(PARTY_CONFIG.texts)) {
+    assert.equal(typeof value, 'string', `Text ist kein Text: ${key}`);
+    assert.ok(value.trim().length > 0, `Text ist leer: ${key}`);
+  }
+  // Diese Texte werden vom Programm zwingend gebraucht.
+  for (const key of [
+    'appTitle',
+    'heroSubline',
+    'heroExplanation',
+    'nameLabel',
+    'namePlaceholder',
+    'startButton',
+    'acceptButton',
+    'redrawButton',
+    'captureButton',
+    'chooseButton',
+    'usePhotoButton',
+    'retakeButton',
+    'cancelMissionButton',
+    'uploadButton',
+    'uploadingLabel',
+    'successTitle',
+    'successText',
+    'bonusButton',
+    'doneButton',
+  ]) {
+    assert.ok(PARTY_CONFIG.texts[key], `Pflichttext fehlt: ${key}`);
+  }
+});
+
+test('Platzhalter in den Texten werden korrekt ersetzt', () => {
+  const values = { name: 'Alex', age: 42 };
+  const subline = fillTemplate(PARTY_CONFIG.texts.heroSubline, values);
+  assert.ok(subline.includes('Alex'));
+  assert.ok(!subline.includes('{name}'));
+  assert.ok(!fillTemplate(PARTY_CONFIG.texts.appTitle, values).includes('{age}'));
+});
+
+test('Der Datenschutzhinweis hat genau den geforderten Inhalt', () => {
+  const { notice, consentLabel, peopleNotice } = PARTY_CONFIG.privacy;
+  assert.match(notice, /ausschließlich für das private Geburtstagsalbum gespeichert/);
+  assert.match(notice, /nicht öffentlich sichtbar/);
+  assert.match(notice, /nach der Feier gelöscht werden/);
+  assert.equal(
+    consentLabel,
+    'Ich bin damit einverstanden, dass dieses Foto im privaten Geburtstagsalbum gespeichert wird.',
+  );
+  assert.match(peopleNotice, /abgebildeten Personen mit dem Foto einverstanden/);
+});
+
+test('Die Begrenzungen sind sinnvoll gesetzt', () => {
+  const l = PARTY_CONFIG.limits;
+  assert.equal(l.regularMissionsPerDevice, 1);
+  assert.equal(l.bonusMissionsPerDevice, 1);
+  assert.equal(l.redrawsPerMission, 1, 'Es soll genau ein Tausch erlaubt sein');
+  assert.ok(l.maxInputFileBytes > l.maxUploadBytes);
+  assert.ok(l.minNameLength >= 2);
+  assert.ok(l.maxNameLength > l.minNameLength && l.maxNameLength <= 100);
+  // Die Obergrenze muss zur Datenbank passen (dort: 8 MB).
+  assert.ok(l.maxUploadBytes <= 8 * 1024 * 1024, 'maxUploadBytes ist größer als die Datenbank erlaubt');
+});
+
+test('Es sind nur echte Bildformate erlaubt', () => {
+  const erlaubt = PARTY_CONFIG.limits.allowedMimeTypes;
+  assert.ok(erlaubt.includes('image/jpeg'));
+  assert.ok(erlaubt.includes('image/heic'), 'iPhone-Fotos müssen erlaubt sein');
+  for (const gefaehrlich of ['image/svg+xml', 'text/html', 'application/javascript']) {
+    assert.ok(!erlaubt.includes(gefaehrlich), `${gefaehrlich} darf nicht erlaubt sein`);
+  }
+  for (const type of erlaubt) {
+    assert.match(type, /^image\//, `Kein Bildformat: ${type}`);
+  }
+});
+
+test('Die Bildverarbeitung ist sinnvoll eingestellt', () => {
+  const image = PARTY_CONFIG.image;
+  assert.ok(image.maxDimension >= 1024 && image.maxDimension <= 4096);
+  assert.ok(image.quality > 0.5 && image.quality <= 1);
+});
+
+test('In der Konfiguration steht kein echter Schlüssel', () => {
+  assert.match(PARTY_CONFIG.supabase.url, /^\[/, 'Hier soll ein Platzhalter stehen');
+  assert.match(PARTY_CONFIG.supabase.anonKey, /^\[/, 'Hier soll ein Platzhalter stehen');
+  assert.ok(!/service_role/i.test(CONFIG_SOURCE));
+  assert.ok(!/eyJ[A-Za-z0-9_-]{30,}/.test(CONFIG_SOURCE), 'Es sieht nach einem echten Schlüssel aus');
+});
+
+test('Der Speicherort in Supabase ist benannt', () => {
+  assert.equal(PARTY_CONFIG.supabase.bucket, 'party-photos');
+  assert.equal(PARTY_CONFIG.supabase.table, 'photo_submissions');
+  assert.ok(PARTY_CONFIG.supabase.signedUrlTtlSeconds >= 60);
+  assert.ok(
+    PARTY_CONFIG.supabase.signedUrlTtlSeconds <= 3600,
+    'Signierte Links sollen kurzlebig sein',
+  );
+});
+
+test('Der Testmodus ist beschrieben und lädt standardmäßig nichts hoch', () => {
+  assert.equal(PARTY_CONFIG.test.queryParam, 'test');
+  assert.equal(PARTY_CONFIG.test.allowUploadByDefault, false);
+  assert.match(PARTY_CONFIG.test.bannerText, /TESTMODUS/i);
+  assert.match(PARTY_CONFIG.test.guestNamePrefix, /TEST/i);
+});
+
+test('Alle Farben sind gültige Hex-Werte', () => {
+  for (const [key, value] of Object.entries(PARTY_CONFIG.theme.colors)) {
+    assert.match(value, /^#[0-9a-f]{6}$/i, `Farbe ungültig: ${key} = ${value}`);
+  }
+});
+
+test('Die Effekte lassen sich einzeln abschalten', () => {
+  for (const key of ['grain', 'particles', 'confetti', 'bigNumber']) {
+    assert.equal(typeof PARTY_CONFIG.theme.effects[key], 'boolean', `Effekt fehlt: ${key}`);
+  }
+  assert.equal(typeof PARTY_CONFIG.theme.sound.enabled, 'boolean');
+});
+
+test('Jede Mission hat alle Felder in der vorgesehenen Form', () => {
+  for (const mission of [...PARTY_CONFIG.missions, ...PARTY_CONFIG.bonusMissions]) {
+    assert.match(mission.id, /^[a-z0-9-]+$/, `Ungültige id: ${mission.id}`);
+    assert.equal(typeof mission.title, 'string');
+    assert.equal(typeof mission.description, 'string');
+    assert.equal(typeof mission.category, 'string');
+    assert.equal(typeof mission.icon, 'string');
+    assert.ok(['leicht', 'mittel', 'schwer'].includes(mission.difficulty));
+    assert.equal(typeof mission.active, 'boolean');
+  }
+});
+
+test('Die Beispiel-Missionen aus der Aufgabenstellung sind abgedeckt', () => {
+  const alle = PARTY_CONFIG.missions.map((m) => `${m.title} ${m.description}`).join(' | ');
+  for (const stichwort of [
+    'lustigsten Moment',
+    'Gruppenfoto',
+    'neu kennengelernt',
+    'Generationen',
+    'Outfit',
+    'Albumcover',
+    'Tanzbewegung',
+    'lange nicht gesehen',
+    'Erinnerung bleiben',
+  ]) {
+    assert.ok(alle.includes(stichwort), `Diese Mission fehlt: "${stichwort}"`);
+  }
+});

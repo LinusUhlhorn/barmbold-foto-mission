@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------
+# Abhaengigkeiten / Werkzeuge
+# ---------------------------------------------------------------
+node_modules/
+.npm/
+npm-debug.log*
+yarn-error.log*
+
+# ---------------------------------------------------------------
+# Lokale Umgebungsdateien (NIEMALS committen!)
+# Hier stehen z. B. FTP- oder Supabase-Zugangsdaten.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+
+# ---------------------------------------------------------------
+# Build-Ausgabe (wird bei Bedarf neu erzeugt)
+# ---------------------------------------------------------------
+dist/
+build/
+.cache/
+
+# ---------------------------------------------------------------
+# Gaestefotos duerfen NIEMALS im Git-Repository landen.
+# Sie liegen ausschliesslich in Supabase Storage.
+# ---------------------------------------------------------------
+uploads/
+fotos/
+photos/
+party-photos/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+*.heif
+# Ausnahme: bewusst versionierte Design-Dateien (aktuell keine vorhanden)
+!assets/img/**
+
+# ---------------------------------------------------------------
+# Betriebssystem / Editor
+# ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~

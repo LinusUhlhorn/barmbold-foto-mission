@@ -1,0 +1,443 @@
+/* =========================================================================
+   DRUCKSEITE FÜR DIE QR-CODE-KARTEN
+   Bildschirmansicht: Vorschau mit Bedienleiste.
+   Druckansicht: nur das Blatt, mit Schnittmarken bei den Tischkarten.
+   ========================================================================= */
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+  background: rgba(12, 9, 26, 0.94);
+  border-bottom: 1px solid var(--c-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.print-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+}
+
+.print-toolbar__group label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.print-toolbar__group input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.print-toolbar__group label:has(input:checked) {
+  background: var(--c-surface-strong);
+  color: var(--c-gold-soft);
+}
+
+.print-toolbar__group label:has(input:focus-visible) {
+  outline: 3px solid var(--c-gold);
+  outline-offset: 2px;
+}
+
+.print-stage {
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--sp-3) var(--sp-7);
+}
+
+/* ---------- Das Blatt ---------- */
+
+.sheet {
+  position: relative;
+  background: #0b0918;
+  color: #f4f1ff;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+  /* Auf dem Bildschirm skaliert, damit das ganze Blatt sichtbar bleibt */
+  transform-origin: top center;
+}
+
+.sheet--a4 {
+  width: 210mm;
+  height: 297mm;
+}
+
+.sheet--a5 {
+  width: 148mm;
+  height: 210mm;
+}
+
+/* ---------- Plakat ---------- */
+
+.poster {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18mm 14mm;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 60% at 50% -10%, rgba(76, 29, 149, 0.6), transparent 62%),
+    radial-gradient(80% 55% at 110% 105%, rgba(192, 38, 211, 0.4), transparent 60%),
+    linear-gradient(170deg, #120d2c, #07060f 70%);
+}
+
+.poster__number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 150mm;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 0.6mm rgba(233, 200, 119, 0.16);
+  pointer-events: none;
+}
+
+.sheet--a5 .poster__number {
+  font-size: 105mm;
+}
+
+.poster__eyebrow {
+  position: relative;
+  font-size: 3.6mm;
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #e9c877;
+  margin-bottom: 5mm;
+}
+
+.poster__title {
+  position: relative;
+  font-size: 13mm;
+  line-height: 1.04;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 4mm;
+  background: linear-gradient(100deg, #f6e2b0 5%, #ffffff 45%, #e0a6f5 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sheet--a5 .poster__title {
+  font-size: 9.5mm;
+}
+
+.poster__subtitle {
+  position: relative;
+  font-size: 4.6mm;
+  line-height: 1.45;
+  color: #cfc9ea;
+  max-width: 120mm;
+  margin-bottom: 9mm;
+}
+
+.sheet--a5 .poster__subtitle {
+  font-size: 3.8mm;
+  max-width: 92mm;
+}
+
+.poster__qr {
+  position: relative;
+  padding: 6mm;
+  background: #ffffff;
+  border-radius: 4mm;
+  box-shadow: 0 0 0 1mm rgba(233, 200, 119, 0.5);
+}
+
+.poster__qr svg {
+  display: block;
+  width: 72mm;
+  height: 72mm;
+}
+
+.sheet--a5 .poster__qr svg {
+  width: 52mm;
+  height: 52mm;
+}
+
+.poster__url {
+  position: relative;
+  margin-top: 5mm;
+  font-size: 3.6mm;
+  letter-spacing: 0.02em;
+  color: #b9b2dd;
+  word-break: break-all;
+}
+
+.poster__steps {
+  position: relative;
+  margin-top: 7mm;
+  font-size: 4mm;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #f6e2b0;
+}
+
+.poster__note {
+  position: relative;
+  margin-top: 8mm;
+  padding-top: 5mm;
+  border-top: 0.3mm solid rgba(233, 200, 119, 0.35);
+  font-size: 3.3mm;
+  line-height: 1.6;
+  color: #a9a3c8;
+  max-width: 130mm;
+}
+
+.poster__gift {
+  position: relative;
+  margin-top: 3mm;
+  font-size: 3.1mm;
+  font-style: italic;
+  color: #8f88b4;
+}
+
+/* ---------- Tischkarten ---------- */
+
+.cards {
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+
+.cards--4 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.cards--8 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+}
+
+.tablecard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8mm 6mm;
+  overflow: hidden;
+  background:
+    radial-gradient(85% 60% at 50% 0%, rgba(76, 29, 149, 0.55), transparent 62%),
+    linear-gradient(165deg, #130e2e, #07060f 72%);
+  /* Feine Linie als Schnitthilfe auch am Bildschirm */
+  outline: 0.2mm dashed rgba(233, 200, 119, 0.28);
+  outline-offset: -0.1mm;
+}
+
+.tablecard__number {
+  position: absolute;
+  right: -6mm;
+  bottom: -14mm;
+  font-size: 52mm;
+  font-weight: 800;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 0.4mm rgba(233, 200, 119, 0.2);
+}
+
+.cards--8 .tablecard__number {
+  font-size: 34mm;
+  bottom: -9mm;
+}
+
+.tablecard__eyebrow {
+  position: relative;
+  font-size: 2.9mm;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #e9c877;
+  margin-bottom: 2.5mm;
+}
+
+.cards--8 .tablecard__eyebrow {
+  font-size: 2.4mm;
+  letter-spacing: 0.24em;
+}
+
+.tablecard__title {
+  position: relative;
+  font-size: 6mm;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 2mm;
+  color: #ffffff;
+}
+
+.cards--8 .tablecard__title {
+  font-size: 4.6mm;
+}
+
+.tablecard__subtitle {
+  position: relative;
+  font-size: 3.1mm;
+  line-height: 1.4;
+  color: #cfc9ea;
+  margin-bottom: 4mm;
+  max-width: 75mm;
+}
+
+.cards--8 .tablecard__subtitle {
+  font-size: 2.6mm;
+  margin-bottom: 3mm;
+}
+
+.tablecard__qr {
+  position: relative;
+  padding: 3mm;
+  background: #fff;
+  border-radius: 2mm;
+}
+
+.tablecard__qr svg {
+  display: block;
+  width: 38mm;
+  height: 38mm;
+}
+
+.cards--8 .tablecard__qr svg {
+  width: 27mm;
+  height: 27mm;
+}
+
+.tablecard__steps {
+  position: relative;
+  margin-top: 3mm;
+  font-size: 2.7mm;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #f6e2b0;
+}
+
+.cards--8 .tablecard__steps {
+  font-size: 2.2mm;
+  margin-top: 2mm;
+}
+
+.tablecard__note {
+  position: relative;
+  margin-top: 2.5mm;
+  font-size: 2.4mm;
+  line-height: 1.45;
+  color: #a9a3c8;
+}
+
+.cards--8 .tablecard__note {
+  font-size: 2mm;
+}
+
+.tablecard__gift {
+  position: relative;
+  margin-top: 1.5mm;
+  font-size: 2.2mm;
+  font-style: italic;
+  color: #8f88b4;
+}
+
+.cards--8 .tablecard__gift {
+  font-size: 1.9mm;
+  margin-top: 1mm;
+}
+
+/* ---------- Schnittmarken (nur beim Drucken sichtbar) ---------- */
+
+.cropmarks {
+  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cropmarks span {
+  position: absolute;
+  background: #000;
+}
+
+/* =========================================================================
+   DRUCKEN
+   ========================================================================= */
+
+@media print {
+  body {
+    background: #fff;
+    padding: 0;
+    margin: 0;
+  }
+
+  .backdrop,
+  .print-toolbar,
+  .print-hint,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-stage {
+    padding: 0;
+    display: block;
+  }
+
+  .sheet {
+    width: 100%;
+    height: 100%;
+    box-shadow: none;
+    transform: none !important;
+    margin: 0;
+    /* Farben und Verläufe wirklich mitdrucken */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .poster,
+  .tablecard {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Schnittmarken nur in der Druckansicht */
+  .cropmarks {
+    display: block;
+  }
+
+  .tablecard {
+    outline: none;
+  }
+
+  @page {
+    margin: 0;
+  }
+}

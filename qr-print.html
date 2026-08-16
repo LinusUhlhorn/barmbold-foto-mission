@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>QR-Code drucken · Foto-Mission</title>
+    <meta name="theme-color" content="#07060f" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/print.css" />
+    <!-- Wird von qr-print.js mit der gewählten Seitengröße gefüllt -->
+    <style data-page-style></style>
+  </head>
+  <body>
+    <div class="backdrop no-print" aria-hidden="true">
+      <div class="backdrop__glow backdrop__glow--a"></div>
+      <div class="backdrop__glow backdrop__glow--b"></div>
+    </div>
+
+    <header class="print-toolbar no-print">
+      <div class="print-toolbar__group" role="radiogroup" aria-label="Format wählen">
+        <label>
+          <input type="radio" name="layout" value="a4-poster" checked />
+          A4 Plakat
+        </label>
+        <label>
+          <input type="radio" name="layout" value="a5-poster" />
+          A5 Plakat
+        </label>
+        <label>
+          <input type="radio" name="layout" value="cards-4" />
+          4 Tischkarten
+        </label>
+        <label>
+          <input type="radio" name="layout" value="cards-8" />
+          8 Tischkarten
+        </label>
+      </div>
+
+      <button type="button" class="btn btn--small btn--primary" data-print>Drucken</button>
+      <button type="button" class="btn btn--small btn--secondary" data-download-svg>
+        QR als SVG
+      </button>
+      <button type="button" class="btn btn--small btn--secondary" data-download-png>
+        QR als PNG
+      </button>
+      <a class="btn btn--small btn--ghost" href="./">Zur App</a>
+    </header>
+
+    <p class="hint print-hint" style="text-align: center; padding: 0 var(--sp-4) var(--sp-4)">
+      Tipp: Beim Drucken „Hintergrundgrafiken drucken“ aktivieren und die Skalierung
+      auf 100 % stellen. Die Schnittmarken erscheinen nur in der Druckansicht.
+    </p>
+
+    <div class="print-stage">
+      <div class="sheet sheet--a4" data-sheet></div>
+    </div>
+
+    <p class="visually-hidden" role="status" aria-live="polite" data-live></p>
+
+    <noscript>
+      <p style="text-align: center; padding: 2rem">
+        Für die QR-Code-Seite muss JavaScript aktiviert sein.
+      </p>
+    </noscript>
+
+    <script type="module" src="assets/js/qr-print.js"></script>
+  </body>
+</html>
