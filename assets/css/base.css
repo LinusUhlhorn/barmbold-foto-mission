@@ -364,6 +364,17 @@ textarea {
   margin-bottom: var(--sp-4);
 }
 
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+}
+
+.topbar__actions .btn--small {
+  min-height: 44px;
+}
+
 .brandmark {
   display: flex;
   align-items: center;
