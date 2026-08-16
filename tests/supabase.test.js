@@ -178,6 +178,26 @@ test('Das Album liest die Datensätze chronologisch', async () => {
   assert.match(fetchImpl.calls[0].url, /order=created_at\.asc/);
 });
 
+test('Die öffentliche Galerie liest nur echte Fotos und deren Herz-Anzahl', async () => {
+  const rows = [{ id: '1', likes_count: 3 }];
+  const fetchImpl = recordingFetch(async () => response(200, rows));
+  const client = createSupabaseClient(CONFIG, { fetchImpl });
+  assert.deepEqual(await client.listPublicSubmissions(), rows);
+  assert.match(fetchImpl.calls[0].url, /is_test=eq\.false/);
+  assert.match(fetchImpl.calls[0].url, /likes_count/);
+});
+
+test('Eine Herz-Wertung läuft über die abgesicherte RPC-Funktion', async () => {
+  const fetchImpl = recordingFetch(async () => response(200, 7));
+  const client = createSupabaseClient(CONFIG, { fetchImpl });
+  assert.equal(await client.voteForPhoto('foto-id', 'geraet-id'), 7);
+  assert.match(fetchImpl.calls[0].url, /\/rpc\/vote_for_photo$/);
+  assert.deepEqual(JSON.parse(fetchImpl.calls[0].options.body), {
+    p_submission_id: 'foto-id',
+    p_voter_id: 'geraet-id',
+  });
+});
+
 test('Löschen greift genau die angegebenen Datensätze', async () => {
   const fetchImpl = recordingFetch(async () => response(204, null));
   const client = createSupabaseClient(CONFIG, { fetchImpl });

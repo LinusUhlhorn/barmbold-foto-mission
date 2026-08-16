@@ -226,6 +226,37 @@ export function createSupabaseClient(config, deps = {}) {
       throw error;
     },
 
+    /** Liest die fuer alle sichtbare Galerie mit aktueller Herz-Anzahl. */
+    async listPublicSubmissions() {
+      const fields = [
+        'id',
+        'guest_name',
+        'mission_title',
+        'mission_category',
+        'storage_path',
+        'created_at',
+        'likes_count',
+      ].join(',');
+      const response = await doFetch(
+        `${baseUrl}/rest/v1/${table}?select=${fields}&is_test=eq.false&order=created_at.desc`,
+        { method: 'GET', headers: authHeaders({ Accept: 'application/json' }) },
+      );
+      if (!response.ok) throw await readError(response);
+      return response.json();
+    },
+
+    /** Vergibt pro Geraet hoechstens ein Herz fuer ein Foto. */
+    async voteForPhoto(submissionId, voterId) {
+      const response = await doFetch(`${baseUrl}/rest/v1/rpc/vote_for_photo`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ p_submission_id: submissionId, p_voter_id: voterId }),
+      });
+      if (!response.ok) throw await readError(response);
+      const value = await response.json();
+      return Number(value) || 0;
+    },
+
     /** Liest alle Datensaetze (nur als angemeldeter Admin erlaubt). */
     async listSubmissions() {
       const query = 'select=*&order=created_at.asc';

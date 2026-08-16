@@ -101,15 +101,16 @@ test('Platzhalter in den Texten werden korrekt ersetzt', () => {
   assert.ok(!title.includes('{age}'));
 });
 
-test('Der Datenschutzhinweis hat genau den geforderten Inhalt', () => {
+test('Der Datenschutzhinweis erklärt die öffentliche Galerie', () => {
   const { notice, consentLabel, peopleNotice } = PARTY_CONFIG.privacy;
-  assert.match(notice, /ausschließlich für das private Silberhochzeits-Album gespeichert/);
-  assert.match(notice, /nicht öffentlich sichtbar/);
-  assert.match(notice, /nach der Feier gelöscht werden/);
+  assert.match(notice, /öffentlichen Galerie/);
+  assert.match(notice, /bewertet werden/);
+  assert.match(notice, /Administration gelöscht werden/);
   assert.equal(
     consentLabel,
-    'Ich bin damit einverstanden, dass dieses Foto im privaten Silberhochzeits-Album gespeichert wird.',
+    'Ich bin damit einverstanden, dass dieses Foto im Silberhochzeits-Album und in der öffentlichen Galerie angezeigt wird.',
   );
+  assert.ok(!/privaten Silberhochzeits-Album/.test(consentLabel));
   assert.match(peopleNotice, /abgebildeten Personen mit dem Foto einverstanden/);
 });
 

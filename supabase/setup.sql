@@ -127,6 +127,7 @@ create table if not exists public.photo_submissions (
 
   is_bonus             boolean     not null default false,
   is_test              boolean     not null default false,
+  likes_count          integer     not null default 0 check (likes_count >= 0),
 
   -- Zufällige ID pro Upload-Vorgang. Verhindert doppelte Einträge, wenn ein
   -- Gast den Knopf zweimal drückt oder der Upload wiederholt wird.
@@ -163,6 +164,59 @@ create table if not exists public.photo_submissions (
 
 comment on table public.photo_submissions is
   'Angaben zu jedem hochgeladenen Foto. Die Bilddatei selbst liegt im Speicher-Bucket party-photos.';
+
+-- Bestehende Projekte erhalten die neue Spalte beim erneuten Ausfuehren.
+alter table public.photo_submissions
+  add column if not exists likes_count integer not null default 0 check (likes_count >= 0);
+
+-- Eine Wertung pro Foto und Geraet. Die Geraete-ID ist zufaellig und enthaelt
+-- keine persoenlichen Daten. Direkter Zugriff auf diese Tabelle bleibt gesperrt.
+create table if not exists public.photo_votes (
+  submission_id uuid not null references public.photo_submissions (id) on delete cascade,
+  voter_id      uuid not null,
+  created_at    timestamptz not null default now(),
+  primary key (submission_id, voter_id)
+);
+
+alter table public.photo_votes enable row level security;
+alter table public.photo_votes force row level security;
+revoke all on public.photo_votes from anon, authenticated;
+
+create or replace function public.vote_for_photo(
+  p_submission_id uuid,
+  p_voter_id uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  inserted_count integer := 0;
+  current_count integer := 0;
+begin
+  insert into public.photo_votes (submission_id, voter_id)
+  values (p_submission_id, p_voter_id)
+  on conflict do nothing;
+  get diagnostics inserted_count = row_count;
+
+  if inserted_count = 1 then
+    update public.photo_submissions
+       set likes_count = likes_count + 1
+     where id = p_submission_id
+       and not is_test;
+  end if;
+
+  select likes_count into current_count
+    from public.photo_submissions
+   where id = p_submission_id
+     and not is_test;
+  return coalesce(current_count, 0);
+end;
+$$;
+
+revoke all on function public.vote_for_photo(uuid, uuid) from public;
+grant execute on function public.vote_for_photo(uuid, uuid) to anon, authenticated;
 
 -- --- Indizes -----------------------------------------------------------------
 -- Chronologische Ansicht ("Die Geschichte des Abends")
@@ -208,6 +262,7 @@ alter table public.photo_submissions force row level security;
 
 -- Alte Regeln entfernen, damit die Datei mehrfach ausführbar bleibt.
 drop policy if exists "Gaeste duerfen eintragen"        on public.photo_submissions;
+drop policy if exists "Oeffentliche Galerie darf lesen" on public.photo_submissions;
 drop policy if exists "Nur Admin darf lesen"            on public.photo_submissions;
 drop policy if exists "Nur Admin darf loeschen"         on public.photo_submissions;
 drop policy if exists "Niemand darf aendern"            on public.photo_submissions;
@@ -229,7 +284,15 @@ create policy "Gaeste duerfen eintragen"
     and ((is_test and storage_path like 'test/%') or ((not is_test) and storage_path like 'party/%'))
   );
 
--- (b) LESEN: ausschließlich eingetragene Album-Admins.
+-- (b) LESEN: Echte Feierfotos sind in der Galerie oeffentlich sichtbar.
+--     Testfotos bleiben ausschliesslich fuer Admins sichtbar.
+create policy "Oeffentliche Galerie darf lesen"
+  on public.photo_submissions
+  for select
+  to anon, authenticated
+  using (not is_test);
+
+-- Admins duerfen zusaetzlich auch Testfotos sehen.
 create policy "Nur Admin darf lesen"
   on public.photo_submissions
   for select
@@ -252,14 +315,15 @@ create policy "Nur Admin darf loeschen"
 -- eng gefasst. Beides zusammen ergibt einen doppelten Boden.
 revoke all on public.photo_submissions from anon, authenticated;
 grant insert on public.photo_submissions to anon, authenticated;
+grant select on public.photo_submissions to anon;
 grant select, delete on public.photo_submissions to authenticated;
 
 
 -- =============================================================================
 -- 4. SPEICHER FÜR DIE BILDDATEIEN
 -- =============================================================================
--- Der Bucket ist NICHT öffentlich. Bilder sind ausschließlich über kurzlebige,
--- signierte Links erreichbar, die nur ein angemeldeter Admin erzeugen kann.
+-- Der Bucket bleibt technisch privat. Die Galerie verwendet kurzlebige
+-- signierte Links; Testfotos bleiben ausschliesslich fuer Admins sichtbar.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -284,6 +348,7 @@ on conflict (id) do update
 -- Die README beschreibt das Schritt für Schritt.
 
 drop policy if exists "Gaeste duerfen Fotos hochladen"   on storage.objects;
+drop policy if exists "Galerie darf Feierfotos ansehen"  on storage.objects;
 drop policy if exists "Nur Admin darf Fotos ansehen"     on storage.objects;
 drop policy if exists "Nur Admin darf Fotos loeschen"    on storage.objects;
 drop policy if exists "Nur Admin darf Fotos ersetzen"    on storage.objects;
@@ -302,9 +367,14 @@ create policy "Gaeste duerfen Fotos hochladen"
     and name ~ '^(party|test)/[0-9a-fA-F-]{36}\.(jpg|webp|png)$'
   );
 
--- (b) ANSEHEN / HERUNTERLADEN / AUFLISTEN: nur Album-Admins.
---     Weil es für "anon" KEINE select-Regel gibt, können Gäste weder fremde
---     Bilder abrufen noch den Bucket auflisten.
+-- (b) ANSEHEN: Echte Feierfotos duerfen fuer die Galerie signiert werden.
+create policy "Galerie darf Feierfotos ansehen"
+  on storage.objects
+  for select
+  to anon, authenticated
+  using (bucket_id = 'party-photos' and name like 'party/%');
+
+-- Album-Admins duerfen zusaetzlich Testfotos ansehen.
 create policy "Nur Admin darf Fotos ansehen"
   on storage.objects
   for select

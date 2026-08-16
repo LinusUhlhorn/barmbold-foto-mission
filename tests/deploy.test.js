@@ -219,33 +219,20 @@ test('Die SQL-Datei aktiviert Row Level Security', () => {
   assert.match(sql, /force row level security/i);
 });
 
-test('Gäste dürfen nur eintragen - nicht lesen, ändern oder löschen', () => {
-  // Für anon gibt es genau EINE Regel, und die ist "for insert".
-  const anonPolicies = [...sql.matchAll(/create policy[\s\S]*?;/g)].filter((m) =>
-    /to anon/.test(m[0]),
+test('Gäste dürfen hochladen und echte Feierfotos sehen, aber nichts löschen', () => {
+  assert.match(sql, /create policy "Gaeste duerfen eintragen"[\s\S]*?for insert[\s\S]*?to anon/i);
+  assert.match(sql, /create policy "Oeffentliche Galerie darf lesen"[\s\S]*?for select[\s\S]*?using \(not is_test\)/i);
+  const anonDelete = [...sql.matchAll(/create policy[\s\S]*?;/g)].find(
+    (m) => /to anon/.test(m[0]) && /for delete/i.test(m[0]),
   );
-  assert.ok(anonPolicies.length >= 1, 'Es gibt keine Regel für Gäste');
-  for (const policy of anonPolicies) {
-    assert.match(policy[0], /for insert/i, `Gäste bekommen mehr als nur "insert":\n${policy[0]}`);
-  }
+  assert.equal(anonDelete, undefined, 'Anonyme Gäste dürfen Fotos löschen');
 });
 
-test('Lesen und Löschen ist nur für eingetragene Admins erlaubt', () => {
-  for (const abschnitt of ['for select', 'for delete']) {
-    const policies = [...sql.matchAll(/create policy[\s\S]*?;/g)].filter((m) =>
-      m[0].toLowerCase().includes(abschnitt),
-    );
-    assert.ok(policies.length > 0, `Keine Regel für "${abschnitt}"`);
-    for (const policy of policies) {
-      // Die einzige Ausnahme ist der eigene Admin-Eintrag.
-      if (policy[0].includes('album_admins')) continue;
-      assert.match(
-        policy[0],
-        /is_album_admin\(\)/,
-        `"${abschnitt}" ohne Admin-Prüfung:\n${policy[0]}`,
-      );
-    }
-  }
+test('Löschen und Testfotos bleiben auf eingetragene Admins begrenzt', () => {
+  assert.match(sql, /create policy "Nur Admin darf lesen"[\s\S]*?is_album_admin\(\)/i);
+  assert.match(sql, /create policy "Nur Admin darf loeschen"[\s\S]*?is_album_admin\(\)/i);
+  assert.match(sql, /create policy "Galerie darf Feierfotos ansehen"[\s\S]*?name like 'party\/%'/i);
+  assert.ok(!/Galerie darf Feierfotos ansehen[\s\S]*?test\/%/.test(sql));
 });
 
 test('Der Speicher-Bucket ist nicht öffentlich', () => {

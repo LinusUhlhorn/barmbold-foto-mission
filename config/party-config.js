@@ -89,10 +89,11 @@ export const PARTY_CONFIG = {
   // -----------------------------------------------------
   privacy: {
     notice:
-      'Dein Name und dein Foto werden ausschließlich für das private Silberhochzeits-Album gespeichert. ' +
-      'Die Bilder sind nicht öffentlich sichtbar und können nach der Feier gelöscht werden.',
+      'Dein Name und dein Foto werden für das Silberhochzeits-Album gespeichert. ' +
+      'Die Bilder sind in der öffentlichen Galerie dieser Seite sichtbar und können dort von Gästen bewertet werden. ' +
+      'Nach der Feier können sie durch die Administration gelöscht werden.',
     consentLabel:
-      'Ich bin damit einverstanden, dass dieses Foto im privaten Silberhochzeits-Album gespeichert wird.',
+      'Ich bin damit einverstanden, dass dieses Foto im Silberhochzeits-Album und in der öffentlichen Galerie angezeigt wird.',
     peopleNotice:
       'Bitte stelle sicher, dass die abgebildeten Personen mit dem Foto einverstanden sind.',
   },

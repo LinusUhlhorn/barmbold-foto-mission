@@ -57,6 +57,15 @@ const run = {
   uploading: false,
 };
 
+const gallery = {
+  rows: [],
+  urls: new Map(),
+  loaded: false,
+  loading: false,
+};
+
+const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v1';
+
 const live = $('[data-live]');
 
 // -------------------------------------------------------------------------
@@ -103,6 +112,139 @@ function showError(node, message) {
   node.appendChild(el('span', { text: message }));
   node.hidden = false;
   announce(live, message);
+}
+
+// -------------------------------------------------------------------------
+// Oeffentliche Galerie
+// -------------------------------------------------------------------------
+
+function votedPhotoIds() {
+  const value = storage.get(GALLERY_VOTES_KEY, []);
+  return new Set(Array.isArray(value) ? value.filter((id) => typeof id === 'string') : []);
+}
+
+function rememberVote(id) {
+  const ids = votedPhotoIds();
+  ids.add(id);
+  storage.set(GALLERY_VOTES_KEY, [...ids].slice(-500));
+}
+
+function setMainView(view) {
+  const isGallery = view === 'gallery';
+  const main = $('#hauptbereich');
+  const galleryNode = $('[data-public-gallery]');
+  main.classList.toggle('is-gallery', isGallery);
+  galleryNode.hidden = !isGallery;
+  for (const button of document.querySelectorAll('[data-view-tab]')) {
+    const active = button.dataset.viewTab === view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+  if (isGallery) {
+    loadPublicGallery();
+    $('#gallery-title').focus({ preventScroll: true });
+  }
+  window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+}
+
+function galleryRowsForView() {
+  const category = $('[data-public-gallery-category]').value;
+  const sort = $('[data-public-gallery-sort]').value;
+  const rows = gallery.rows.filter((row) => !category || row.mission_category === category);
+  if (sort === 'popular') {
+    return rows.sort((a, b) => Number(b.likes_count || 0) - Number(a.likes_count || 0));
+  }
+  if (sort === 'oldest') {
+    return rows.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  }
+  return rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function renderPublicGallery() {
+  const grid = $('[data-public-gallery-grid]');
+  const empty = $('[data-public-gallery-empty]');
+  const rows = galleryRowsForView();
+  const voted = votedPhotoIds();
+  clear(grid);
+  empty.hidden = rows.length !== 0;
+
+  for (const row of rows) {
+    const card = el('article', { className: 'public-photo' });
+    const url = gallery.urls.get(row.storage_path);
+    const image = el('img', {
+      className: 'public-photo__image',
+      attrs: {
+        src: url || '',
+        alt: `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`,
+        loading: 'lazy',
+      },
+    });
+    card.appendChild(image);
+
+    const body = el('div', { className: 'public-photo__body' });
+    body.appendChild(el('p', { className: 'public-photo__name', text: row.guest_name || 'Ohne Namen' }));
+    body.appendChild(el('p', { className: 'public-photo__mission', text: row.mission_title || 'Foto-Mission' }));
+
+    const footer = el('div', { className: 'public-photo__footer' });
+    footer.appendChild(el('span', { className: 'public-photo__category', text: row.mission_category || 'Erinnerung' }));
+    const liked = voted.has(row.id);
+    const like = el('button', {
+      className: `btn btn--secondary public-photo__like${liked ? ' is-liked' : ''}`,
+      attrs: { type: 'button', 'aria-pressed': String(liked), 'aria-label': 'Foto mit einem Herz bewerten' },
+    });
+    like.appendChild(createIcon('heart', { size: 18 }));
+    like.appendChild(el('span', { text: String(Number(row.likes_count || 0)) }));
+    like.addEventListener('click', async () => {
+      if (liked || like.disabled || !supabaseReady) return;
+      like.disabled = true;
+      try {
+        row.likes_count = await supabase.voteForPhoto(row.id, device.deviceId);
+        rememberVote(row.id);
+        renderPublicGallery();
+      } catch (error) {
+        showError($('[data-public-gallery-error]'), describeError(error));
+        like.disabled = false;
+      }
+    });
+    footer.appendChild(like);
+    body.appendChild(footer);
+    card.appendChild(body);
+    grid.appendChild(card);
+  }
+}
+
+function buildPublicGalleryCategories() {
+  const select = $('[data-public-gallery-category]');
+  const current = select.value;
+  const categories = new Set(config.missions.concat(config.bonusMissions).map((m) => m.category));
+  clear(select);
+  select.appendChild(el('option', { attrs: { value: '' }, text: 'Alle Kategorien' }));
+  for (const category of [...categories].filter(Boolean).sort((a, b) => a.localeCompare(b, 'de'))) {
+    select.appendChild(el('option', { attrs: { value: category }, text: category }));
+  }
+  select.value = current;
+}
+
+async function loadPublicGallery() {
+  if (gallery.loading || !supabaseReady) {
+    if (!supabaseReady) $('[data-public-gallery-empty]').hidden = false;
+    return;
+  }
+  gallery.loading = true;
+  showError($('[data-public-gallery-error]'), null);
+  try {
+    gallery.rows = await supabase.listPublicSubmissions();
+    gallery.urls = await supabase.createSignedUrls(
+      gallery.rows.map((row) => row.storage_path),
+      config.supabase.signedUrlTtlSeconds,
+    );
+    gallery.loaded = true;
+    renderPublicGallery();
+  } catch (error) {
+    showError($('[data-public-gallery-error]'), describeError(error));
+  } finally {
+    gallery.loading = false;
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -807,6 +949,19 @@ function bindEvents() {
   };
   document.addEventListener('pointerdown', unlockOnce, { once: true });
 
+  for (const button of document.querySelectorAll('[data-view-tab]')) {
+    button.addEventListener('click', () => setMainView(button.dataset.viewTab));
+  }
+  $('[data-public-gallery-category]').addEventListener('change', renderPublicGallery);
+  $('[data-public-gallery-sort]').addEventListener('change', renderPublicGallery);
+
+  const privacyDialog = $('[data-privacy-dialog]');
+  $('[data-privacy-open]').addEventListener('click', () => privacyDialog.showModal());
+  $('[data-privacy-close]').addEventListener('click', () => privacyDialog.close());
+  privacyDialog.addEventListener('click', (event) => {
+    if (event.target === privacyDialog) privacyDialog.close();
+  });
+
   $('[data-sound-toggle]').addEventListener('click', () => {
     sound.toggle();
     refreshSoundButton();
@@ -929,6 +1084,7 @@ async function init() {
   applyBigNumber(config.party.age);
   applyTexts();
   refreshSoundButton();
+  buildPublicGalleryCategories();
   setupTestMode();
   bindEvents();
 

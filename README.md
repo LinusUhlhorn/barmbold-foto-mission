@@ -30,7 +30,9 @@ Ohne Supabase läuft die Seite sicher im Demo-Modus; es wird nichts hochgeladen.
 
 5. `npm run setup` erneut öffnen und Project URL sowie den öffentlichen Anon-/Publishable-Key eintragen.
 
-Niemals einen `service_role`-Key oder ein Passwort in die Konfiguration schreiben. Der Storage-Bucket `party-photos` muss privat bleiben. Galerie und Administration liegen unter `/album/`. Ohne Supabase erscheint dort eine leere Vorschau mit allen Missionskategorien; nach der Einrichtung schützt die Admin-Anmeldung die echten Fotos.
+Niemals einen `service_role`-Key oder ein Passwort in die Konfiguration schreiben. Der Storage-Bucket `party-photos` bleibt technisch privat und liefert der öffentlichen Galerie nur kurzlebige Bildlinks. Die normale Seite enthält den öffentlichen Galerie-Tab mit Kategorien und Herz-Rangliste. Die unverlinkte Administration liegt weiterhin unter `/album/` und ist durch die Admin-Anmeldung geschützt.
+
+Nach einem Update aus einer älteren Version `supabase/setup.sql` erneut vollständig im SQL Editor ausführen. Das ergänzt die Herz-Wertungen und die Leseregeln für die öffentliche Galerie, ohne bestehende Fotos oder Admin-Benutzer zu löschen.
 
 ## Veröffentlichen mit GitHub Actions
 
