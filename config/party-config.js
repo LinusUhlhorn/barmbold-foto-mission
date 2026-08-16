@@ -146,8 +146,8 @@ export const PARTY_CONFIG = {
   // Alles bis zur Foto-Vorschau funktioniert, aber es wird NICHTS hochgeladen
   // und es wird auch KEIN falscher Erfolg angezeigt.
   supabase: {
-    url: '[SUPABASE PROJECT URL]', // z. B. https://abcdefghijklm.supabase.co
-    anonKey: '[SUPABASE ANON KEY]', // oeffentlicher Anon-/Publishable-Key
+    url: 'https://kdxycggkdfiuqwuhueab.supabase.co', // z. B. https://abcdefghijklm.supabase.co
+    anonKey: 'sb_publishable_8hUHbxyv1Nr_q6iyAnPwvA_sAa9lYDX', // oeffentlicher Anon-/Publishable-Key
     bucket: 'party-photos',
     table: 'photo_submissions',
     // Wie lange sind die Bild-Links im privaten Album gueltig (in Sekunden)?
