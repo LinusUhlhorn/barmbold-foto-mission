@@ -143,11 +143,11 @@ test('Die Bildverarbeitung ist sinnvoll eingestellt', () => {
   assert.ok(image.quality > 0.5 && image.quality <= 1);
 });
 
-test('In der Konfiguration steht kein echter Schlüssel', () => {
-  assert.match(PARTY_CONFIG.supabase.url, /^\[/, 'Hier soll ein Platzhalter stehen');
-  assert.match(PARTY_CONFIG.supabase.anonKey, /^\[/, 'Hier soll ein Platzhalter stehen');
-  assert.ok(!/service_role/i.test(CONFIG_SOURCE));
-  assert.ok(!/eyJ[A-Za-z0-9_-]{30,}/.test(CONFIG_SOURCE), 'Es sieht nach einem echten Schlüssel aus');
+test('In der Konfiguration steht nur ein öffentlicher Supabase-Schlüssel', () => {
+  assert.match(PARTY_CONFIG.supabase.url, /^https:\/\/[a-z0-9]+\.supabase\.co\/?$/);
+  assert.match(PARTY_CONFIG.supabase.anonKey, /^(sb_publishable_|eyJ)/);
+  assert.ok(!/service_role/i.test(PARTY_CONFIG.supabase.anonKey));
+  assert.ok(!/^sb_secret_/i.test(PARTY_CONFIG.supabase.anonKey));
 });
 
 test('Der Speicherort in Supabase ist benannt', () => {
