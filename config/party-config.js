@@ -47,7 +47,6 @@ export const PARTY_CONFIG = {
       'Zieh eine Mission, halte einen besonderen Moment fest und werde Teil ihres Silberhochzeits-Albums.',
     nameLabel: 'Wie heißt du?',
     namePlaceholder: 'Dein Name',
-    nameHelp: 'Damit Britta & Lutz später wissen, von wem das Foto ist.',
     startButton: 'Mission ziehen',
 
     drawTitle: 'Deine Mission wird gemischt …',
