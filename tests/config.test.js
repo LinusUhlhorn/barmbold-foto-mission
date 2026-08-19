@@ -87,6 +87,7 @@ test('Alle Texte der Oberfläche sind gefüllt', () => {
     'uploadingLabel',
     'successTitle',
     'successText',
+    'nextMissionButton',
     'bonusButton',
     'doneButton',
   ]) {
@@ -116,9 +117,9 @@ test('Der Datenschutzhinweis erklärt die öffentliche Galerie', () => {
 
 test('Die Begrenzungen sind sinnvoll gesetzt', () => {
   const l = PARTY_CONFIG.limits;
-  assert.equal(l.regularMissionsPerDevice, 1);
+  assert.equal(l.regularMissionsPerDevice, 2);
   assert.equal(l.bonusMissionsPerDevice, 1);
-  assert.equal(l.redrawsPerMission, 1, 'Es soll genau ein Tausch erlaubt sein');
+  assert.equal(l.redrawsPerMission, 2, 'Es sollen genau zwei Wechsel erlaubt sein');
   assert.ok(l.maxInputFileBytes > l.maxUploadBytes);
   assert.ok(l.minNameLength >= 2);
   assert.ok(l.maxNameLength > l.minNameLength && l.maxNameLength <= 100);

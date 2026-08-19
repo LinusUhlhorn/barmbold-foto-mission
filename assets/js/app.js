@@ -810,8 +810,12 @@ function showSuccess(wasDuplicate) {
   setText('[data-success-mission]', rendered.title);
 
   const allowance = missionAllowance(device, config.limits, testMode);
+  const nextMissionButton = $('[data-next-mission]');
   const bonusButton = $('[data-bonus-button]');
+  const doneButton = $('[data-done-button]');
+  nextMissionButton.hidden = !allowance.canRegular;
   bonusButton.hidden = !(allowance.canBonus && config.bonusMissions.some((m) => m.active !== false));
+  doneButton.hidden = allowance.canRegular || allowance.canBonus;
 
   showScreen('success');
   fireConfetti();
@@ -1057,6 +1061,12 @@ function bindEvents() {
   });
 
   // ---- Abschluss ----
+  $('[data-next-mission]').addEventListener('click', async () => {
+    sound.tap();
+    releasePreviewUrl();
+    run.photo = null;
+    await performDraw('regular');
+  });
   $('[data-bonus-button]').addEventListener('click', async () => {
     sound.tap();
     releasePreviewUrl();

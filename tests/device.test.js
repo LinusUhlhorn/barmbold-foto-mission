@@ -89,7 +89,7 @@ test('Gezogene Missionen werden gemerkt und nicht doppelt gespeichert', () => {
   assert.equal(device.seenMissionIds.length, 2);
 });
 
-test('Standardmäßig ist genau eine reguläre Mission erlaubt', () => {
+test('Standardmäßig sind zwei reguläre Missionen vor der Bonus-Mission erlaubt', () => {
   const device = createDeviceState(createSafeStorage(fakeStorage()));
   let allowance = missionAllowance(device, PARTY_CONFIG.limits, false);
   assert.equal(allowance.canRegular, true);
@@ -98,18 +98,24 @@ test('Standardmäßig ist genau eine reguläre Mission erlaubt', () => {
   device.addCompleted({ kind: 'regular', missionId: 'm-1', missionTitle: 'Test' });
 
   allowance = missionAllowance(device, PARTY_CONFIG.limits, false);
-  assert.equal(allowance.canRegular, false, 'Eine zweite reguläre Mission wäre erlaubt gewesen');
+  assert.equal(allowance.canRegular, true);
+  assert.equal(allowance.canBonus, false, 'Bonus darf es erst nach zwei regulären Missionen geben');
+
+  device.addCompleted({ kind: 'regular', missionId: 'm-2', missionTitle: 'Test 2' });
+  allowance = missionAllowance(device, PARTY_CONFIG.limits, false);
+  assert.equal(allowance.canRegular, false);
   assert.equal(allowance.canBonus, true);
 });
 
 test('Nach der Bonus-Mission ist Schluss', () => {
   const device = createDeviceState(createSafeStorage(fakeStorage()));
   device.addCompleted({ kind: 'regular', missionId: 'm-1' });
+  device.addCompleted({ kind: 'regular', missionId: 'm-2' });
   device.addCompleted({ kind: 'bonus', missionId: 'b-1' });
   const allowance = missionAllowance(device, PARTY_CONFIG.limits, false);
   assert.equal(allowance.canRegular, false);
   assert.equal(allowance.canBonus, false);
-  assert.equal(allowance.regularDone, 1);
+  assert.equal(allowance.regularDone, 2);
   assert.equal(allowance.bonusDone, 1);
 });
 

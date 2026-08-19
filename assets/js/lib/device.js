@@ -163,7 +163,7 @@ export function missionAllowance(device, limits = {}, testMode = false) {
   }
   return {
     canRegular: regularDone < maxRegular,
-    canBonus: regularDone > 0 && bonusDone < maxBonus,
+    canBonus: regularDone >= maxRegular && bonusDone < maxBonus,
     regularDone,
     bonusDone,
   };

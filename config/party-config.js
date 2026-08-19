@@ -53,7 +53,7 @@ export const PARTY_CONFIG = {
     drawHint: 'Gleich weißt du, was du fotografieren sollst.',
     acceptButton: 'Mission annehmen',
     redrawButton: 'Andere Mission ziehen',
-    redrawUsedHint: 'Du hast deinen Tausch bereits genutzt – diese Mission gilt.',
+    redrawUsedHint: 'Du hast zweimal gewechselt – diese Mission gilt.',
 
     captureTitle: 'Auf geht’s!',
     captureButton: 'Foto aufnehmen',
@@ -73,6 +73,7 @@ export const PARTY_CONFIG = {
 
     successTitle: 'Mission erfüllt!',
     successText: 'Dein Foto ist jetzt Teil des Silberhochzeits-Albums von Britta & Lutz.',
+    nextMissionButton: 'Nächste Mission ziehen',
     bonusButton: 'Bonus-Mission ziehen',
     doneButton: 'Fertig',
     finishedTitle: 'Danke dir!',
@@ -101,12 +102,12 @@ export const PARTY_CONFIG = {
   // 4. WIE VIELE FOTOS DARF EIN GERAET HOCHLADEN?
   // -----------------------------------------------------
   limits: {
-    // Regulaere Missionen pro Geraet (Standard: 1).
-    regularMissionsPerDevice: 1,
+    // Regulaere Missionen pro Geraet.
+    regularMissionsPerDevice: 2,
     // Zusaetzliche Bonus-Missionen pro Geraet (Standard: 1). 0 = keine Bonus-Mission.
     bonusMissionsPerDevice: 1,
-    // Wie oft darf vor dem Annehmen getauscht werden? (Standard: 1)
-    redrawsPerMission: 1,
+    // Zweimal darf gewechselt werden; die dritte gezogene Mission gilt.
+    redrawsPerMission: 2,
     // Groesse der Datei, die das Handy liefert (vor der Verkleinerung).
     maxInputFileBytes: 40 * 1024 * 1024, // 40 MB
     // Groesse der fertig verkleinerten Datei, die hochgeladen wird.
