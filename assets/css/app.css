@@ -362,7 +362,7 @@
 }
 
 .deck__card::after {
-  content: '30';
+  content: '25';
   font-family: var(--font-display);
   font-size: 3.6rem;
   font-weight: 800;

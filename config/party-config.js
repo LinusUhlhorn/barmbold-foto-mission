@@ -176,7 +176,7 @@ export const PARTY_CONFIG = {
       grain: true, // animierte Filmkoernung
       particles: true, // dezente Lichtpunkte
       confetti: true, // Lichtpartikel am Ende
-      bigNumber: true, // grosse "30" im Hintergrund
+      bigNumber: true, // grosse Jubilaeumszahl im Hintergrund
     },
     // Kurzer Sound (im Browser erzeugt, keine Musikdatei, keine Rechte noetig).
     // Wird ausschliesslich nach einem Tippen des Gastes abgespielt.
