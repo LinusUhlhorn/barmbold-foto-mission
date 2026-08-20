@@ -75,13 +75,19 @@ export const PARTY_CONFIG = {
     successText: 'Dein Foto ist jetzt Teil des Silberhochzeits-Albums von Britta & Lutz.',
     nextMissionButton: 'Nächste Mission ziehen',
     bonusButton: 'Bonus-Mission ziehen',
+    // Freiwillige Zusatz-Mission, nachdem Pflicht- und Bonus-Mission erledigt sind.
+    extraMissionButton: 'Noch eine Mission ziehen',
+    galleryButton: 'Zur Galerie',
     doneButton: 'Fertig',
     finishedTitle: 'Danke dir!',
     finishedText:
-      'Du hast deine Foto-Mission abgeschlossen. Genieß die Silberhochzeit – und feiert Britta & Lutz gebührend.',
+      'Du hast deine Foto-Mission abgeschlossen. Schau dir in der Galerie an, was die anderen Gäste eingefangen haben – ' +
+      'und wenn du magst, zieh einfach noch eine Mission.',
 
     alreadyDoneTitle: 'Du warst schon dabei',
-    alreadyDoneText: 'Deine Mission ist bereits im Album gelandet.',
+    alreadyDoneText:
+      'Deine Missionen sind bereits im Album gelandet. Du kannst jederzeit noch eine Mission ziehen ' +
+      'oder in der Galerie stöbern.',
   },
 
   // -----------------------------------------------------
@@ -92,8 +98,14 @@ export const PARTY_CONFIG = {
       'Dein Name und dein Foto werden für das Silberhochzeits-Album gespeichert. ' +
       'Die Bilder sind in der öffentlichen Galerie dieser Seite sichtbar und können dort von Gästen bewertet werden. ' +
       'Nach der Feier können sie durch die Administration gelöscht werden.',
+    // Steht direkt neben dem Haken vor dem Hochladen. Bewusst kurz und in
+    // eigener Sprache - er soll wirklich gelesen werden.
     consentLabel:
-      'Ich bin damit einverstanden, dass dieses Foto im Silberhochzeits-Album und in der öffentlichen Galerie angezeigt wird.',
+      'Ja, mein Foto darf ins Silberhochzeits-Album und in die öffentliche Galerie – ' +
+      'alle abgebildeten Personen sind einverstanden.',
+    // Kleiner Zusatz unter dem Haken.
+    consentHint:
+      'Bitte frag im Zweifel kurz nach, bevor du ein Foto mit anderen Gästen hochlädst.',
     peopleNotice:
       'Bitte stelle sicher, dass die abgebildeten Personen mit dem Foto einverstanden sind.',
   },
@@ -106,6 +118,9 @@ export const PARTY_CONFIG = {
     regularMissionsPerDevice: 2,
     // Zusaetzliche Bonus-Missionen pro Geraet (Standard: 1). 0 = keine Bonus-Mission.
     bonusMissionsPerDevice: 1,
+    // Danach ist Schluss? Nein: Wer mag, darf freiwillig immer weitermachen.
+    // Auf false setzen, wenn nach Pflicht- und Bonus-Mission wirklich Schluss sein soll.
+    allowExtraMissions: true,
     // Zweimal darf gewechselt werden; die dritte gezogene Mission gilt.
     redrawsPerMission: 2,
     // Groesse der Datei, die das Handy liefert (vor der Verkleinerung).

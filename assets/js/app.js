@@ -60,11 +60,17 @@ const run = {
 const gallery = {
   rows: [],
   urls: new Map(),
+  // Foto-ID -> Kategorie: Welche Herzen hat dieses Geraet vergeben?
+  votes: new Map(),
+  // Foto-ID -> {row, button, countNode}: damit sich einzelne Karten
+  // aktualisieren lassen, ohne die ganze Galerie neu aufzubauen.
+  cards: new Map(),
   loaded: false,
   loading: false,
+  loadedAt: 0,
 };
 
-const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v1';
+const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v2';
 
 const live = $('[data-live]');
 
@@ -118,15 +124,26 @@ function showError(node, message) {
 // Oeffentliche Galerie
 // -------------------------------------------------------------------------
 
-function votedPhotoIds() {
-  const value = storage.get(GALLERY_VOTES_KEY, []);
-  return new Set(Array.isArray(value) ? value.filter((id) => typeof id === 'string') : []);
+/**
+ * Vergebene Herzen aus dem Browser-Speicher lesen.
+ * Die Datenbank bleibt die verlaessliche Quelle; das hier ist nur die
+ * Anzeige, solange die Galerie noch laedt oder gerade nichts erreichbar ist.
+ * @returns {Map<string, string>} Foto-ID -> Kategorie
+ */
+function storedVotes() {
+  const value = storage.get(GALLERY_VOTES_KEY, null);
+  const votes = new Map();
+  if (!value || typeof value !== 'object') return votes;
+  for (const [id, category] of Object.entries(value)) {
+    if (typeof id === 'string' && id !== '') {
+      votes.set(id, typeof category === 'string' ? category : '');
+    }
+  }
+  return votes;
 }
 
-function rememberVote(id) {
-  const ids = votedPhotoIds();
-  ids.add(id);
-  storage.set(GALLERY_VOTES_KEY, [...ids].slice(-500));
+function rememberVotes(votes) {
+  storage.set(GALLERY_VOTES_KEY, Object.fromEntries([...votes].slice(-300)));
 }
 
 function setMainView(view) {
@@ -141,7 +158,10 @@ function setMainView(view) {
     button.setAttribute('aria-pressed', String(active));
   }
   if (isGallery) {
-    loadPublicGallery();
+    // Nur neu laden, wenn die Bildlinks abzulaufen drohen - sonst reicht das,
+    // was schon da ist, und die Galerie steht sofort.
+    if (galleryIsStale()) loadPublicGallery();
+    else renderPublicGallery();
     $('#gallery-title').focus({ preventScroll: true });
   }
   window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
@@ -150,9 +170,15 @@ function setMainView(view) {
 function galleryRowsForView() {
   const category = $('[data-public-gallery-category]').value;
   const sort = $('[data-public-gallery-sort]').value;
+  // Bewusst auf einer Kopie sortieren: gallery.rows soll seine Reihenfolge
+  // behalten, sonst wandern die Karten beim naechsten Aufbau durcheinander.
   const rows = gallery.rows.filter((row) => !category || row.mission_category === category);
   if (sort === 'popular') {
-    return rows.sort((a, b) => Number(b.likes_count || 0) - Number(a.likes_count || 0));
+    return rows.sort(
+      (a, b) =>
+        Number(b.likes_count || 0) - Number(a.likes_count || 0) ||
+        new Date(b.created_at || 0) - new Date(a.created_at || 0),
+    );
   }
   if (sort === 'oldest') {
     return rows.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
@@ -160,26 +186,102 @@ function galleryRowsForView() {
   return rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 }
 
+/** Beschriftung des Herz-Knopfes, passend zum aktuellen Zustand. */
+function likeLabel(row, liked) {
+  const category = row.mission_category || 'dieser Kategorie';
+  return liked
+    ? `Herz wieder wegnehmen (${category})`
+    : `Diesem Foto das Herz für ${category} geben`;
+}
+
+/** Aktualisiert einen einzelnen Herz-Knopf, ohne die Galerie neu aufzubauen. */
+function refreshLikeButton(id) {
+  const card = gallery.cards.get(id);
+  if (!card) return;
+  const liked = gallery.votes.has(id);
+  card.button.classList.toggle('is-liked', liked);
+  card.button.setAttribute('aria-pressed', String(liked));
+  card.button.setAttribute('aria-label', likeLabel(card.row, liked));
+  card.countNode.textContent = String(Number(card.row.likes_count || 0));
+}
+
+/**
+ * Herz vergeben, wegnehmen oder innerhalb der Kategorie umsetzen.
+ * Die Regel "ein Herz je Kategorie" setzt die Datenbank durch.
+ */
+async function toggleLike(row, button) {
+  if (!supabaseReady || button.disabled) return;
+  const errorNode = $('[data-public-gallery-error]');
+  button.disabled = true;
+  try {
+    const result = await supabase.togglePhotoVote(row.id, device.deviceId);
+    showError(errorNode, null);
+    row.likes_count = result.likesCount;
+    if (result.liked) {
+      gallery.votes.set(row.id, result.category || row.mission_category || '');
+    } else {
+      gallery.votes.delete(row.id);
+    }
+
+    // Ist das Herz aus derselben Kategorie umgezogen, muss die alte Karte mit.
+    if (result.movedFrom) {
+      gallery.votes.delete(result.movedFrom);
+      const previous = gallery.rows.find((entry) => entry.id === result.movedFrom);
+      if (previous && result.movedFromLikesCount != null) {
+        previous.likes_count = result.movedFromLikesCount;
+      }
+      refreshLikeButton(result.movedFrom);
+    }
+
+    rememberVotes(gallery.votes);
+    refreshLikeButton(row.id);
+    sound.tap();
+    vibrate(8);
+    announce(
+      live,
+      result.liked
+        ? result.movedFrom
+          ? `Dein Herz für ${result.category} ist zu diesem Foto umgezogen.`
+          : 'Herz vergeben.'
+        : 'Herz wieder weggenommen.',
+    );
+  } catch (error) {
+    showError(errorNode, describeError(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderPublicGallery() {
   const grid = $('[data-public-gallery-grid]');
   const empty = $('[data-public-gallery-empty]');
   const rows = galleryRowsForView();
-  const voted = votedPhotoIds();
   clear(grid);
+  gallery.cards.clear();
   empty.hidden = rows.length !== 0;
 
   for (const row of rows) {
     const card = el('article', { className: 'public-photo' });
     const url = gallery.urls.get(row.storage_path);
-    const image = el('img', {
-      className: 'public-photo__image',
-      attrs: {
-        src: url || '',
-        alt: `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`,
-        loading: 'lazy',
-      },
-    });
-    card.appendChild(image);
+
+    if (url) {
+      const image = el('img', {
+        className: 'public-photo__image',
+        attrs: {
+          src: url,
+          alt: `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`,
+          loading: 'lazy',
+        },
+      });
+      // Laedt das Bild nicht (abgelaufener Link, Funkloch), bleibt keine
+      // kaputte Grafik stehen, sondern ein ruhiger Platzhalter.
+      image.addEventListener('error', () => {
+        image.replaceWith(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+      });
+      card.appendChild(image);
+    } else {
+      card.appendChild(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+    }
 
     const body = el('div', { className: 'public-photo__body' });
     body.appendChild(el('p', { className: 'public-photo__name', text: row.guest_name || 'Ohne Namen' }));
@@ -187,25 +289,23 @@ function renderPublicGallery() {
 
     const footer = el('div', { className: 'public-photo__footer' });
     footer.appendChild(el('span', { className: 'public-photo__category', text: row.mission_category || 'Erinnerung' }));
-    const liked = voted.has(row.id);
+
+    const liked = gallery.votes.has(row.id);
     const like = el('button', {
       className: `btn btn--secondary public-photo__like${liked ? ' is-liked' : ''}`,
-      attrs: { type: 'button', 'aria-pressed': String(liked), 'aria-label': 'Foto mit einem Herz bewerten' },
+      attrs: {
+        type: 'button',
+        'aria-pressed': String(liked),
+        'aria-label': likeLabel(row, liked),
+      },
     });
     like.appendChild(createIcon('heart', { size: 18 }));
-    like.appendChild(el('span', { text: String(Number(row.likes_count || 0)) }));
-    like.addEventListener('click', async () => {
-      if (liked || like.disabled || !supabaseReady) return;
-      like.disabled = true;
-      try {
-        row.likes_count = await supabase.voteForPhoto(row.id, device.deviceId);
-        rememberVote(row.id);
-        renderPublicGallery();
-      } catch (error) {
-        showError($('[data-public-gallery-error]'), describeError(error));
-        like.disabled = false;
-      }
-    });
+    const countNode = el('span', { text: String(Number(row.likes_count || 0)) });
+    like.appendChild(countNode);
+    like.disabled = !supabaseReady;
+    like.addEventListener('click', () => toggleLike(row, like));
+
+    gallery.cards.set(row.id, { row, button: like, countNode });
     footer.appendChild(like);
     body.appendChild(footer);
     card.appendChild(body);
@@ -225,23 +325,72 @@ function buildPublicGalleryCategories() {
   select.value = current;
 }
 
+/**
+ * Sind die signierten Bildlinks noch frisch genug?
+ * Sie laufen nach config.supabase.signedUrlTtlSeconds ab; deshalb wird die
+ * Galerie schon vor Ablauf neu geladen, statt leere Kacheln zu zeigen.
+ */
+function galleryIsStale() {
+  if (!gallery.loaded) return true;
+  const ttl = Number(config.supabase.signedUrlTtlSeconds) || 600;
+  return Date.now() - gallery.loadedAt > Math.max(30, ttl * 0.5) * 1000;
+}
+
 async function loadPublicGallery() {
   if (gallery.loading || !supabaseReady) {
     if (!supabaseReady) $('[data-public-gallery-empty]').hidden = false;
     return;
   }
   gallery.loading = true;
-  showError($('[data-public-gallery-error]'), null);
+  const errorNode = $('[data-public-gallery-error]');
+  showError(errorNode, null);
   try {
     gallery.rows = await supabase.listPublicSubmissions();
+
+    // Die Bilddateien liegen in einem privaten Speicher. Fuer die Galerie
+    // werden daraus kurzlebige Links erzeugt.
     gallery.urls = await supabase.createSignedUrls(
       gallery.rows.map((row) => row.storage_path),
       config.supabase.signedUrlTtlSeconds,
     );
+
+    // Welche Herzen hat dieses Geraet schon vergeben? Die Datenbank weiss es
+    // genauer als der Browser-Speicher - schlaegt sie fehl, bleibt der
+    // gemerkte Stand stehen.
+    try {
+      gallery.votes = await supabase.listMyVotes(device.deviceId);
+      rememberVotes(gallery.votes);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('Die vergebenen Herzen konnten nicht gelesen werden.', error);
+      if (gallery.votes.size === 0) gallery.votes = storedVotes();
+    }
+
     gallery.loaded = true;
+    gallery.loadedAt = Date.now();
     renderPublicGallery();
+
+    // Fehlende Bildlinks sind der haeufigste Stolperstein (die Leseregel fuer
+    // den Speicher fehlt in Supabase). Frueher blieben die Kacheln einfach
+    // leer - jetzt sagt die Seite es deutlich.
+    const missing = gallery.rows.filter((row) => !gallery.urls.has(row.storage_path));
+    if (missing.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Für ${missing.length} von ${gallery.rows.length} Fotos gibt es keinen Bildlink. ` +
+          'Meist fehlt in Supabase die Speicher-Leseregel "Galerie darf Feierfotos ansehen" – ' +
+          'dann hilft es, supabase/setup.sql noch einmal vollständig auszuführen.',
+      );
+      showError(
+        errorNode,
+        missing.length === gallery.rows.length
+          ? 'Die Bilder lassen sich gerade nicht anzeigen. Bitte lade die Seite neu – ' +
+              'wenn es dann immer noch fehlt, sag kurz dem Gastgeber Bescheid.'
+          : `${missing.length} von ${gallery.rows.length} Bildern lassen sich gerade nicht anzeigen.`,
+      );
+    }
   } catch (error) {
-    showError($('[data-public-gallery-error]'), describeError(error));
+    showError(errorNode, describeError(error));
   } finally {
     gallery.loading = false;
   }
@@ -349,8 +498,21 @@ function fireConfetti() {
 // Missionen
 // -------------------------------------------------------------------------
 
+/**
+ * Aus welchem Topf wird gezogen?
+ *  regular / extra -> die regulaeren Missionen
+ *  bonus           -> die Bonus-Missionen
+ * Freiwillige Extra-Missionen laufen bewusst ueber denselben Topf wie die
+ * regulaeren - so bleiben die Aufgaben vertraut, und "schon gezogen" wird
+ * weiterhin beruecksichtigt.
+ */
 function missionPool(kind) {
   return kind === 'bonus' ? config.bonusMissions : config.missions;
+}
+
+/** Gibt es ueberhaupt noch eine Bonus-Mission zum Ziehen? */
+function hasBonusMissions() {
+  return config.bonusMissions.some((mission) => mission.active !== false);
 }
 
 function renderMissionCard(mission) {
@@ -368,6 +530,9 @@ function renderMissionCard(mission) {
   }
   if (run.missionKind === 'bonus') {
     meta.appendChild(el('span', { className: 'tag tag--bonus', text: 'Bonus' }));
+  }
+  if (run.missionKind === 'extra') {
+    meta.appendChild(el('span', { className: 'tag tag--bonus', text: 'Freiwillig' }));
   }
   if (testMode) {
     meta.appendChild(el('span', { className: 'tag tag--test', text: 'Test' }));
@@ -782,6 +947,9 @@ async function startUpload() {
     storage.remove(PENDING_KEY);
     await clearPending();
 
+    // Die Galerie hat jetzt ein Foto mehr - beim naechsten Öffnen neu laden.
+    gallery.loaded = false;
+
     showSuccess(result.duplicate);
   } catch (error) {
     window.clearTimeout(slowTimer);
@@ -812,9 +980,12 @@ function showSuccess(wasDuplicate) {
   const allowance = missionAllowance(device, config.limits, testMode);
   const nextMissionButton = $('[data-next-mission]');
   const bonusButton = $('[data-bonus-button]');
+  const extraButton = $('[data-extra-mission]');
   const doneButton = $('[data-done-button]');
   nextMissionButton.hidden = !allowance.canRegular;
-  bonusButton.hidden = !(allowance.canBonus && config.bonusMissions.some((m) => m.active !== false));
+  bonusButton.hidden = !(allowance.canBonus && hasBonusMissions());
+  // Pflicht- und Bonus-Mission erledigt? Dann geht es freiwillig weiter.
+  extraButton.hidden = allowance.canRegular || allowance.canBonus || !allowance.canExtra;
   doneButton.hidden = allowance.canRegular || allowance.canBonus;
 
   showScreen('success');
@@ -846,12 +1017,9 @@ function showFinished() {
   if (hasCompleted) {
     for (const entry of completed) {
       const row = el('div', { className: 'summary__row' });
-      row.appendChild(
-        el('span', {
-          className: 'summary__key',
-          text: entry.kind === 'bonus' ? 'Bonus' : 'Mission',
-        }),
-      );
+      const kindLabel =
+        entry.kind === 'bonus' ? 'Bonus' : entry.kind === 'extra' ? 'Freiwillig' : 'Mission';
+      row.appendChild(el('span', { className: 'summary__key', text: kindLabel }));
       row.appendChild(el('span', { className: 'summary__value', text: entry.missionTitle || '–' }));
       summary.appendChild(row);
     }
@@ -861,7 +1029,10 @@ function showFinished() {
   }
 
   const bonusButton = $('[data-finished-bonus]');
-  bonusButton.hidden = !(allowance.canBonus && config.bonusMissions.some((m) => m.active !== false));
+  bonusButton.hidden = !(allowance.canBonus && hasBonusMissions());
+  // Wer schon alles erledigt hat, darf trotzdem weitermachen.
+  $('[data-finished-extra]').hidden =
+    allowance.canRegular || allowance.canBonus || !allowance.canExtra;
 
   showScreen('finished');
 }
@@ -1084,6 +1255,23 @@ function bindEvents() {
     await performDraw('bonus');
   });
 
+  // ---- Freiwillig weitermachen oder in die Galerie ----
+  const drawExtra = async () => {
+    sound.tap();
+    releasePreviewUrl();
+    run.photo = null;
+    await performDraw('extra');
+  };
+  $('[data-extra-mission]').addEventListener('click', drawExtra);
+  $('[data-finished-extra]').addEventListener('click', drawExtra);
+
+  const openGallery = () => {
+    sound.tap();
+    setMainView('gallery');
+  };
+  $('[data-success-gallery]').addEventListener('click', openGallery);
+  $('[data-finished-gallery]').addEventListener('click', openGallery);
+
   // Beim Verlassen aufraeumen
   window.addEventListener('pagehide', releasePreviewUrl);
 }
@@ -1094,6 +1282,8 @@ async function init() {
   applyBigNumber(config.party.age);
   applyTexts();
   refreshSoundButton();
+  // Gemerkte Herzen als erste Anzeige; die Datenbank korrigiert sie beim Laden.
+  gallery.votes = storedVotes();
   buildPublicGalleryCategories();
   setupTestMode();
   bindEvents();

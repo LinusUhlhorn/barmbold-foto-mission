@@ -245,16 +245,52 @@ export function createSupabaseClient(config, deps = {}) {
       return response.json();
     },
 
-    /** Vergibt pro Geraet hoechstens ein Herz fuer ein Foto. */
-    async voteForPhoto(submissionId, voterId) {
-      const response = await doFetch(`${baseUrl}/rest/v1/rpc/vote_for_photo`, {
+    /**
+     * Vergibt ein Herz, nimmt es wieder weg oder setzt es innerhalb derselben
+     * Kategorie um. Die Regel "ein Herz je Geraet und Kategorie" wird in der
+     * Datenbank durchgesetzt, nicht hier im Browser.
+     * @returns {Promise<{liked: boolean, submissionId: string, likesCount: number,
+     *                    category: string, movedFrom: string|null, movedFromLikesCount: number|null}>}
+     */
+    async togglePhotoVote(submissionId, voterId) {
+      const response = await doFetch(`${baseUrl}/rest/v1/rpc/toggle_photo_vote`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ p_submission_id: submissionId, p_voter_id: voterId }),
       });
       if (!response.ok) throw await readError(response);
       const value = await response.json();
-      return Number(value) || 0;
+      const data = value && typeof value === 'object' ? value : {};
+      return {
+        liked: Boolean(data.liked),
+        submissionId: String(data.submission_id || submissionId),
+        likesCount: Number(data.likes_count) || 0,
+        category: data.category ? String(data.category) : '',
+        movedFrom: data.moved_from ? String(data.moved_from) : null,
+        movedFromLikesCount:
+          data.moved_from_likes_count == null ? null : Number(data.moved_from_likes_count) || 0,
+      };
+    },
+
+    /**
+     * Liest, welche Herzen dieses Geraet bereits vergeben hat.
+     * @returns {Promise<Map<string, string>>} Foto-ID -> Kategorie
+     */
+    async listMyVotes(voterId) {
+      const response = await doFetch(`${baseUrl}/rest/v1/rpc/my_photo_votes`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ p_voter_id: voterId }),
+      });
+      if (!response.ok) throw await readError(response);
+      const rows = await response.json();
+      const result = new Map();
+      for (const row of Array.isArray(rows) ? rows : []) {
+        if (row && row.submission_id) {
+          result.set(String(row.submission_id), String(row.mission_category || ''));
+        }
+      }
+      return result;
     },
 
     /** Liest alle Datensaetze (nur als angemeldeter Admin erlaubt). */

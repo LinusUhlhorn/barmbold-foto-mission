@@ -107,7 +107,7 @@ test('Standardmäßig sind zwei reguläre Missionen vor der Bonus-Mission erlaub
   assert.equal(allowance.canBonus, true);
 });
 
-test('Nach der Bonus-Mission ist Schluss', () => {
+test('Nach der Bonus-Mission ist der Pflichtteil erledigt', () => {
   const device = createDeviceState(createSafeStorage(fakeStorage()));
   device.addCompleted({ kind: 'regular', missionId: 'm-1' });
   device.addCompleted({ kind: 'regular', missionId: 'm-2' });
@@ -117,6 +117,33 @@ test('Nach der Bonus-Mission ist Schluss', () => {
   assert.equal(allowance.canBonus, false);
   assert.equal(allowance.regularDone, 2);
   assert.equal(allowance.bonusDone, 1);
+  // Aber niemand wird ausgesperrt: freiwillig geht es immer weiter.
+  assert.equal(allowance.canExtra, true);
+});
+
+test('Freiwillige Zusatz-Missionen zählen nicht auf den Pflichtteil', () => {
+  const device = createDeviceState(createSafeStorage(fakeStorage()));
+  device.addCompleted({ kind: 'regular', missionId: 'm-1' });
+  device.addCompleted({ kind: 'regular', missionId: 'm-2' });
+  device.addCompleted({ kind: 'bonus', missionId: 'b-1' });
+  for (let i = 0; i < 5; i += 1) {
+    device.addCompleted({ kind: 'extra', missionId: `x-${i}` });
+  }
+  const allowance = missionAllowance(device, PARTY_CONFIG.limits, false);
+  assert.equal(allowance.extraDone, 5);
+  assert.equal(allowance.canExtra, true, 'Es gibt keine Obergrenze für freiwillige Missionen');
+  assert.equal(allowance.regularDone, 2, 'Zusatz-Missionen dürfen den Pflichtteil nicht verändern');
+  assert.equal(allowance.bonusDone, 1);
+});
+
+test('Zusatz-Missionen lassen sich in der Konfiguration abschalten', () => {
+  const device = createDeviceState(createSafeStorage(fakeStorage()));
+  const allowance = missionAllowance(
+    device,
+    { ...PARTY_CONFIG.limits, allowExtraMissions: false },
+    false,
+  );
+  assert.equal(allowance.canExtra, false);
 });
 
 test('Im Testmodus ist die Anzahl nicht begrenzt', () => {

@@ -89,6 +89,8 @@ test('Alle Texte der Oberfläche sind gefüllt', () => {
     'successText',
     'nextMissionButton',
     'bonusButton',
+    'extraMissionButton',
+    'galleryButton',
     'doneButton',
   ]) {
     assert.ok(PARTY_CONFIG.texts[key], `Pflichttext fehlt: ${key}`);
@@ -103,16 +105,27 @@ test('Platzhalter in den Texten werden korrekt ersetzt', () => {
 });
 
 test('Der Datenschutzhinweis erklärt die öffentliche Galerie', () => {
-  const { notice, consentLabel, peopleNotice } = PARTY_CONFIG.privacy;
+  const { notice, consentLabel, consentHint, peopleNotice } = PARTY_CONFIG.privacy;
   assert.match(notice, /öffentlichen Galerie/);
   assert.match(notice, /bewertet werden/);
   assert.match(notice, /Administration gelöscht werden/);
-  assert.equal(
-    consentLabel,
-    'Ich bin damit einverstanden, dass dieses Foto im Silberhochzeits-Album und in der öffentlichen Galerie angezeigt wird.',
-  );
-  assert.ok(!/privaten Silberhochzeits-Album/.test(consentLabel));
   assert.match(peopleNotice, /abgebildeten Personen mit dem Foto einverstanden/);
+  assert.ok(consentHint.trim().length > 0, 'Der Zusatz unter dem Haken fehlt');
+});
+
+test('Der Haken vor dem Upload nennt Album, Galerie und die abgebildeten Personen', () => {
+  const { consentLabel } = PARTY_CONFIG.privacy;
+  assert.match(consentLabel, /Album/, 'Das Album fehlt im Einwilligungstext');
+  assert.match(consentLabel, /Galerie/, 'Die öffentliche Galerie fehlt im Einwilligungstext');
+  assert.match(
+    consentLabel,
+    /abgebildeten Personen sind einverstanden/,
+    'Das Einverständnis der abgebildeten Personen fehlt',
+  );
+  // Die Galerie ist öffentlich - "privates Album" wäre irreführend.
+  assert.ok(!/privaten? (Silberhochzeits-)?Album/.test(consentLabel));
+  // Er steht neben einem Ankreuzfeld und muss auf einen Blick lesbar bleiben.
+  assert.ok(consentLabel.length <= 220, 'Der Einwilligungstext ist zu lang für den Haken');
 });
 
 test('Die Begrenzungen sind sinnvoll gesetzt', () => {
@@ -120,6 +133,7 @@ test('Die Begrenzungen sind sinnvoll gesetzt', () => {
   assert.equal(l.regularMissionsPerDevice, 2);
   assert.equal(l.bonusMissionsPerDevice, 1);
   assert.equal(l.redrawsPerMission, 2, 'Es sollen genau zwei Wechsel erlaubt sein');
+  assert.equal(l.allowExtraMissions, true, 'Freiwillige Zusatz-Missionen sollen erlaubt sein');
   assert.ok(l.maxInputFileBytes > l.maxUploadBytes);
   assert.ok(l.minNameLength >= 2);
   assert.ok(l.maxNameLength > l.minNameLength && l.maxNameLength <= 100);

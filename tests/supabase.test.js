@@ -188,14 +188,59 @@ test('Die öffentliche Galerie liest nur echte Fotos und deren Herz-Anzahl', asy
 });
 
 test('Eine Herz-Wertung läuft über die abgesicherte RPC-Funktion', async () => {
-  const fetchImpl = recordingFetch(async () => response(200, 7));
+  const fetchImpl = recordingFetch(async () =>
+    response(200, {
+      liked: true,
+      submission_id: 'foto-id',
+      likes_count: 7,
+      category: 'Momente',
+      moved_from: null,
+      moved_from_likes_count: null,
+    }),
+  );
   const client = createSupabaseClient(CONFIG, { fetchImpl });
-  assert.equal(await client.voteForPhoto('foto-id', 'geraet-id'), 7);
-  assert.match(fetchImpl.calls[0].url, /\/rpc\/vote_for_photo$/);
+  const result = await client.togglePhotoVote('foto-id', 'geraet-id');
+  assert.equal(result.liked, true);
+  assert.equal(result.likesCount, 7);
+  assert.equal(result.category, 'Momente');
+  assert.equal(result.movedFrom, null);
+  assert.match(fetchImpl.calls[0].url, /\/rpc\/toggle_photo_vote$/);
   assert.deepEqual(JSON.parse(fetchImpl.calls[0].options.body), {
     p_submission_id: 'foto-id',
     p_voter_id: 'geraet-id',
   });
+});
+
+test('Ein umgezogenes Herz meldet beide betroffenen Fotos', async () => {
+  const fetchImpl = recordingFetch(async () =>
+    response(200, {
+      liked: true,
+      submission_id: 'neu',
+      likes_count: 1,
+      category: 'Kreativ',
+      moved_from: 'alt',
+      moved_from_likes_count: 3,
+    }),
+  );
+  const client = createSupabaseClient(CONFIG, { fetchImpl });
+  const result = await client.togglePhotoVote('neu', 'geraet-id');
+  assert.equal(result.movedFrom, 'alt');
+  assert.equal(result.movedFromLikesCount, 3);
+});
+
+test('Die vergebenen Herzen eines Geräts kommen als Zuordnung zurück', async () => {
+  const fetchImpl = recordingFetch(async () =>
+    response(200, [
+      { submission_id: 'foto-1', mission_category: 'Momente' },
+      { submission_id: 'foto-2', mission_category: 'Kreativ' },
+    ]),
+  );
+  const client = createSupabaseClient(CONFIG, { fetchImpl });
+  const votes = await client.listMyVotes('geraet-id');
+  assert.equal(votes.get('foto-1'), 'Momente');
+  assert.equal(votes.get('foto-2'), 'Kreativ');
+  assert.match(fetchImpl.calls[0].url, /\/rpc\/my_photo_votes$/);
+  assert.deepEqual(JSON.parse(fetchImpl.calls[0].options.body), { p_voter_id: 'geraet-id' });
 });
 
 test('Löschen greift genau die angegebenen Datensätze', async () => {
