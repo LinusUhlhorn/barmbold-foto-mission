@@ -178,10 +178,163 @@ create table if not exists public.photo_votes (
   primary key (submission_id, voter_id)
 );
 
+-- Die Kategorie wird bei der Wertung mitgeschrieben. Nur so laesst sich die
+-- Regel "ein Herz pro Kategorie" direkt in der Datenbank absichern.
+alter table public.photo_votes
+  add column if not exists mission_category text;
+
+-- Bestehende Wertungen aus einer aelteren Version nachtragen.
+update public.photo_votes v
+   set mission_category = s.mission_category
+  from public.photo_submissions s
+ where s.id = v.submission_id
+   and v.mission_category is distinct from s.mission_category;
+
+-- Wertungen ohne Foto (sollte es nicht geben) verwerfen.
+delete from public.photo_votes where mission_category is null;
+
+-- Hat ein Geraet aus einer aelteren Version mehrere Herzen in derselben
+-- Kategorie vergeben, bleibt nur das zuletzt vergebene stehen.
+delete from public.photo_votes v
+ using (
+   select submission_id,
+          voter_id,
+          row_number() over (
+            partition by voter_id, mission_category
+            order by created_at desc, submission_id
+          ) as rang
+     from public.photo_votes
+ ) mehrfach
+ where mehrfach.submission_id = v.submission_id
+   and mehrfach.voter_id = v.voter_id
+   and mehrfach.rang > 1;
+
+alter table public.photo_votes alter column mission_category set not null;
+
+-- Ab jetzt sorgt die Datenbank selbst dafuer, dass ein Geraet je Kategorie
+-- hoechstens ein Herz vergibt.
+create unique index if not exists photo_votes_ein_herz_je_kategorie
+  on public.photo_votes (voter_id, mission_category);
+
 alter table public.photo_votes enable row level security;
 alter table public.photo_votes force row level security;
 revoke all on public.photo_votes from anon, authenticated;
 
+-- -----------------------------------------------------------------------------
+-- Herz vergeben, umsetzen oder wieder wegnehmen
+-- -----------------------------------------------------------------------------
+-- Ein Aufruf, drei moegliche Faelle:
+--   1. Noch kein Herz in dieser Kategorie  -> Herz wird vergeben.
+--   2. Herz haengt schon an genau diesem Foto -> Herz wird weggenommen.
+--   3. Herz haengt an einem anderen Foto derselben Kategorie -> es zieht um.
+--
+-- Zurueck kommt ein kleines JSON-Objekt, damit die Seite beide betroffenen
+-- Zaehler sofort richtig anzeigen kann.
+create or replace function public.toggle_photo_vote(
+  p_submission_id uuid,
+  p_voter_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_category    text;
+  v_moved_from  uuid    := null;
+  v_moved_count integer := null;
+  v_count       integer := 0;
+begin
+  -- Nur echte Feierfotos duerfen bewertet werden, keine Testfotos.
+  select mission_category into v_category
+    from public.photo_submissions
+   where id = p_submission_id
+     and not is_test;
+
+  if v_category is null then
+    raise exception 'Dieses Foto steht nicht (mehr) in der Galerie.';
+  end if;
+
+  -- Fall 2: Herz wieder wegnehmen.
+  delete from public.photo_votes
+   where submission_id = p_submission_id
+     and voter_id = p_voter_id;
+
+  if found then
+    update public.photo_submissions
+       set likes_count = greatest(likes_count - 1, 0)
+     where id = p_submission_id
+    returning likes_count into v_count;
+
+    return jsonb_build_object(
+      'liked', false,
+      'submission_id', p_submission_id,
+      'likes_count', coalesce(v_count, 0),
+      'category', v_category,
+      'moved_from', null,
+      'moved_from_likes_count', null
+    );
+  end if;
+
+  -- Fall 3: vorhandenes Herz derselben Kategorie umziehen lassen.
+  delete from public.photo_votes
+   where voter_id = p_voter_id
+     and mission_category = v_category
+  returning submission_id into v_moved_from;
+
+  if v_moved_from is not null then
+    update public.photo_submissions
+       set likes_count = greatest(likes_count - 1, 0)
+     where id = v_moved_from
+    returning likes_count into v_moved_count;
+  end if;
+
+  -- Fall 1 (und Abschluss von Fall 3): Herz vergeben.
+  insert into public.photo_votes (submission_id, voter_id, mission_category)
+  values (p_submission_id, p_voter_id, v_category);
+
+  update public.photo_submissions
+     set likes_count = likes_count + 1
+   where id = p_submission_id
+  returning likes_count into v_count;
+
+  return jsonb_build_object(
+    'liked', true,
+    'submission_id', p_submission_id,
+    'likes_count', coalesce(v_count, 0),
+    'category', v_category,
+    'moved_from', v_moved_from,
+    'moved_from_likes_count', v_moved_count
+  );
+end;
+$$;
+
+revoke all on function public.toggle_photo_vote(uuid, uuid) from public;
+grant execute on function public.toggle_photo_vote(uuid, uuid) to anon, authenticated;
+
+-- -----------------------------------------------------------------------------
+-- Welche Herzen hat dieses Geraet schon vergeben?
+-- -----------------------------------------------------------------------------
+-- Damit stimmt die Anzeige auch dann, wenn der Browser-Speicher geleert wurde
+-- oder die Galerie auf einem anderen Tab geoeffnet ist.
+create or replace function public.my_photo_votes(p_voter_id uuid)
+returns table (submission_id uuid, mission_category text)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select v.submission_id, v.mission_category
+    from public.photo_votes v
+   where v.voter_id = p_voter_id;
+$$;
+
+revoke all on function public.my_photo_votes(uuid) from public;
+grant execute on function public.my_photo_votes(uuid) to anon, authenticated;
+
+-- Aeltere Fassung der Seite ruft noch "vote_for_photo" auf. Damit ein offener
+-- Tab waehrend der Feier nicht in einen Fehler laeuft, bleibt der Name als
+-- kleine Weiterleitung bestehen: Er vergibt ein Herz, nimmt aber keines weg.
 create or replace function public.vote_for_photo(
   p_submission_id uuid,
   p_voter_id uuid
@@ -192,31 +345,40 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
-  inserted_count integer := 0;
-  current_count integer := 0;
+  v_result jsonb;
+  v_count integer;
 begin
-  insert into public.photo_votes (submission_id, voter_id)
-  values (p_submission_id, p_voter_id)
-  on conflict do nothing;
-  get diagnostics inserted_count = row_count;
-
-  if inserted_count = 1 then
-    update public.photo_submissions
-       set likes_count = likes_count + 1
-     where id = p_submission_id
-       and not is_test;
+  if exists (
+    select 1 from public.photo_votes
+     where submission_id = p_submission_id
+       and voter_id = p_voter_id
+  ) then
+    select likes_count into v_count
+      from public.photo_submissions
+     where id = p_submission_id;
+    return coalesce(v_count, 0);
   end if;
 
-  select likes_count into current_count
-    from public.photo_submissions
-   where id = p_submission_id
-     and not is_test;
-  return coalesce(current_count, 0);
+  v_result := public.toggle_photo_vote(p_submission_id, p_voter_id);
+  return coalesce((v_result ->> 'likes_count')::integer, 0);
 end;
 $$;
 
 revoke all on function public.vote_for_photo(uuid, uuid) from public;
 grant execute on function public.vote_for_photo(uuid, uuid) to anon, authenticated;
+
+-- Zaehler und Wertungen wieder in Einklang bringen (z. B. nach dem Aufraeumen
+-- oben oder nachdem ein Admin ein Foto geloescht hat).
+update public.photo_submissions s
+   set likes_count = z.anzahl
+  from (
+    select ps.id, count(pv.voter_id)::integer as anzahl
+      from public.photo_submissions ps
+      left join public.photo_votes pv on pv.submission_id = ps.id
+     group by ps.id
+  ) z
+ where z.id = s.id
+   and s.likes_count is distinct from z.anzahl;
 
 -- --- Indizes -----------------------------------------------------------------
 -- Chronologische Ansicht ("Die Geschichte des Abends")
@@ -434,10 +596,14 @@ create policy "Nur Admin darf Fotos ersetzen"
 --      (Über das Album lassen sich alle Fotos auswählen und samt Dateien löschen.)
 --
 --  (c) Alles restlos entfernen (Tabellen, Regeln, Bucket):
+-- drop table if exists public.photo_votes;
 -- drop table if exists public.photo_submissions;
 -- drop table if exists public.album_admins;
 -- drop function if exists public.is_album_admin();
 -- drop function if exists public.set_submission_created_at();
+-- drop function if exists public.toggle_photo_vote(uuid, uuid);
+-- drop function if exists public.my_photo_votes(uuid);
+-- drop function if exists public.vote_for_photo(uuid, uuid);
 -- delete from storage.objects where bucket_id = 'party-photos';
 -- delete from storage.buckets where id = 'party-photos';
 
@@ -450,4 +616,31 @@ create policy "Nur Admin darf Fotos ersetzen"
 select tablename, rowsecurity
   from pg_tables
  where schemaname = 'public'
-   and tablename in ('photo_submissions', 'album_admins');
+   and tablename in ('photo_submissions', 'album_admins', 'photo_votes');
+
+-- Zweite Selbstprüfung: Hier müssen ALLE vier Zeilen "vorhanden = true" zeigen.
+-- Fehlt eine, bleibt in der Galerie das jeweilige Stück aus:
+--   * ohne die Leseregel sieht man keine Fotoangaben,
+--   * ohne die Speicherregel bleiben die Bilder leer (nur graue Kacheln),
+--   * ohne die beiden Funktionen lassen sich keine Herzen vergeben.
+select 'Galerie darf Fotoangaben lesen' as pruefung,
+       exists (
+         select 1 from pg_policies
+          where schemaname = 'public'
+            and tablename = 'photo_submissions'
+            and policyname = 'Oeffentliche Galerie darf lesen'
+       ) as vorhanden
+union all
+select 'Galerie darf Bilddateien signieren',
+       exists (
+         select 1 from pg_policies
+          where schemaname = 'storage'
+            and tablename = 'objects'
+            and policyname = 'Galerie darf Feierfotos ansehen'
+       )
+union all
+select 'Funktion toggle_photo_vote',
+       exists (select 1 from pg_proc where proname = 'toggle_photo_vote')
+union all
+select 'Funktion my_photo_votes',
+       exists (select 1 from pg_proc where proname = 'my_photo_votes');

@@ -222,6 +222,47 @@ test('Die Einwilligung ist eine eigene Ankreuzmöglichkeit', () => {
   assert.match(html, /data-text-privacy="peopleNotice"/, 'Hinweis zu abgebildeten Personen fehlt');
 });
 
+test('Vorschau und Bestätigen haben einen festen Aktionsbereich', () => {
+  // Auf dem Handy müssen "Dieses Foto verwenden" bzw. Haken und
+  // "Foto hochladen" sichtbar sein, ohne dass jemand scrollen muss.
+  const html = read('index.html').replace(/\s+/g, ' ');
+  for (const screen of ['preview', 'confirm']) {
+    const abschnitt = html.match(
+      new RegExp(`<section class="screen screen--sheet" data-screen="${screen}"[\\s\\S]*?</section>`),
+    );
+    assert.ok(abschnitt, `Der Bildschirm "${screen}" ist nicht als Blatt aufgebaut`);
+    assert.match(abschnitt[0], /class="card__scroll"/, `${screen}: Scrollbereich fehlt`);
+    assert.match(abschnitt[0], /class="card__actions"/, `${screen}: Aktionsbereich fehlt`);
+  }
+
+  // Die wichtigen Bedienelemente stehen im Aktionsbereich, nicht im Scrollteil.
+  const aktionen = [...html.matchAll(/class="card__actions">([\s\S]*?)<\/section>/g)]
+    .map((treffer) => treffer[1])
+    .join(' ');
+  assert.match(aktionen, /data-use-photo/, 'Der Knopf "Foto verwenden" klebt nicht unten');
+  assert.match(aktionen, /data-consent/, 'Der Haken klebt nicht unten');
+  assert.match(aktionen, /data-upload-button/, 'Der Hochladen-Knopf klebt nicht unten');
+});
+
+test('Der Aktionsbereich bleibt beim Scrollen stehen', () => {
+  const css = read('assets/css/app.css').replace(/\s+/g, ' ');
+  assert.match(css, /\.card__actions \{[^}]*position: sticky;[^}]*bottom: 0;/);
+  // Eine abgeschnittene Karte würde sticky wirkungslos machen.
+  assert.match(css, /\.card--sheet \{[^}]*overflow: visible;/);
+});
+
+test('Nach dem Pflichtteil geht es freiwillig weiter oder in die Galerie', () => {
+  const html = read('index.html');
+  for (const hook of [
+    'data-extra-mission',
+    'data-success-gallery',
+    'data-finished-extra',
+    'data-finished-gallery',
+  ]) {
+    assert.ok(html.includes(hook), `Es fehlt: ${hook}`);
+  }
+});
+
 test('Der Upload-Knopf lässt sich gegen doppeltes Tippen sperren', () => {
   const code = read('assets/js/app.js');
   assert.match(code, /run\.uploading/, 'Es gibt keinen Schutz gegen mehrfaches Absenden');

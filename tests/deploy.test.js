@@ -281,6 +281,38 @@ test('Doppelte Uploads werden von der Datenbank verhindert', () => {
   assert.match(sql, /storage_path\s+text\s+not null unique/i);
 });
 
+test('Ein Gerät bekommt je Kategorie nur ein Herz', () => {
+  // Die Regel steht in der Datenbank, nicht nur im Browser: Ein geleerter
+  // Speicher oder ein zweiter Tab darf keine zusätzlichen Herzen bringen.
+  assert.match(
+    sql,
+    /create unique index if not exists photo_votes_ein_herz_je_kategorie\s*\n?\s*on public\.photo_votes \(voter_id, mission_category\)/i,
+  );
+  assert.match(sql, /alter table public\.photo_votes\s*\n?\s*add column if not exists mission_category text/i);
+});
+
+test('Herzen lassen sich vergeben, wegnehmen und umsetzen', () => {
+  assert.match(sql, /create or replace function public\.toggle_photo_vote\(/i);
+  assert.match(sql, /returns jsonb/i);
+  // Wegnehmen darf den Zähler nie unter null drücken.
+  assert.match(sql, /greatest\(likes_count - 1, 0\)/);
+  // Nur echte Feierfotos sind bewertbar.
+  assert.match(sql, /toggle_photo_vote[\s\S]*?and not is_test/i);
+  assert.match(sql, /grant execute on function public\.toggle_photo_vote\(uuid, uuid\) to anon, authenticated/i);
+});
+
+test('Die Seite kann die eigenen Herzen wieder auslesen', () => {
+  assert.match(sql, /create or replace function public\.my_photo_votes\(p_voter_id uuid\)/i);
+  assert.match(sql, /grant execute on function public\.my_photo_votes\(uuid\) to anon, authenticated/i);
+});
+
+test('Die Wertungstabelle selbst bleibt für Gäste gesperrt', () => {
+  assert.match(sql, /alter table public\.photo_votes force row level security/i);
+  assert.match(sql, /revoke all on public\.photo_votes from anon, authenticated/i);
+  // Der Zugriff läuft ausschließlich über die geprüften Funktionen.
+  assert.match(sql, /security definer/i);
+});
+
 test('Es gibt Indizes für Zeitleiste, Filter und Testfotos', () => {
   assert.match(sql, /create index if not exists photo_submissions_created_at_idx/i);
   assert.match(sql, /create index if not exists photo_submissions_mission_idx/i);
@@ -299,12 +331,25 @@ test('In der SQL-Datei steht kein echter Schlüssel und kein echtes Passwort', (
 });
 
 test('Die gefährlichen Aufräum-Befehle sind auskommentiert', () => {
+  // Fotos, Admins und Dateien dürfen von dieser Datei NIEMALS angetastet
+  // werden - sie soll auch nach der Feier gefahrlos erneut laufen können.
+  const unantastbar =
+    /^delete from\s+(public\.(photo_submissions|album_admins)|storage\.(objects|buckets))\b/i;
   for (const zeile of sql.split('\n')) {
     const trimmed = zeile.trim();
-    if (/^(drop table|delete from)/i.test(trimmed)) {
+    if (/^drop table/i.test(trimmed) || unantastbar.test(trimmed)) {
       assert.fail(`Dieser Befehl darf nicht aktiv sein: ${trimmed}`);
     }
+    // Aufräumen in photo_votes ist erlaubt: Das sind nur Herz-Wertungen, und
+    // die Umstellung auf "ein Herz je Kategorie" braucht es. Alles andere nicht.
+    if (/^delete from/i.test(trimmed)) {
+      assert.match(
+        trimmed,
+        /^delete from public\.photo_votes\b/i,
+        `Dieser Befehl darf nicht aktiv sein: ${trimmed}`,
+      );
+    }
   }
-  // Sie müssen aber als Anleitung vorhanden sein.
+  // Die gefährlichen Befehle müssen aber als Anleitung vorhanden sein.
   assert.match(sql, /-- delete from public\.photo_submissions where is_test;/);
 });

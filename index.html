@@ -260,27 +260,33 @@
         <!-- ============================================================
              5. VORSCHAU
              ============================================================ -->
-        <section class="screen" data-screen="preview" aria-labelledby="preview-headline">
-          <div class="card">
-            <h2 class="headline" id="preview-headline" data-text="previewTitle">
-              Sieht das gut aus?
-            </h2>
+        <section class="screen screen--sheet" data-screen="preview" aria-labelledby="preview-headline">
+          <div class="card card--sheet">
+            <!-- Scrollbereich: alles, was zur Not weggescrollt werden darf. -->
+            <div class="card__scroll">
+              <h2 class="headline" id="preview-headline" data-text="previewTitle">
+                Sieht das gut aus?
+              </h2>
 
-            <div class="preview" style="margin-top: var(--sp-4)">
-              <img class="preview__image" data-preview-image alt="Vorschau deines aufgenommenen Fotos" />
-              <div class="preview__facts" data-preview-facts></div>
+              <div class="preview" style="margin-top: var(--sp-4)">
+                <img class="preview__image" data-preview-image alt="Vorschau deines aufgenommenen Fotos" />
+                <div class="preview__facts" data-preview-facts></div>
+              </div>
             </div>
 
-            <div class="btn-row">
+            <!-- Aktionsbereich: bleibt auf dem Handy immer sichtbar. -->
+            <div class="card__actions">
               <button type="button" class="btn btn--primary" data-use-photo>
                 <span data-text="usePhotoButton">Dieses Foto verwenden</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-retake-photo>
-                <span data-text="retakeButton">Neu aufnehmen</span>
-              </button>
-              <button type="button" class="btn btn--ghost btn--small" data-cancel-mission-2>
-                <span data-text="cancelMissionButton">Mission abbrechen</span>
-              </button>
+              <div class="btn-row btn-row--inline btn-row--tight">
+                <button type="button" class="btn btn--secondary btn--small" data-retake-photo>
+                  <span data-text="retakeButton">Neu aufnehmen</span>
+                </button>
+                <button type="button" class="btn btn--ghost btn--small" data-cancel-mission-2>
+                  <span data-text="cancelMissionButton">Mission abbrechen</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -288,45 +294,52 @@
         <!-- ============================================================
              6. BESTÄTIGEN UND HOCHLADEN
              ============================================================ -->
-        <section class="screen" data-screen="confirm" aria-labelledby="confirm-headline">
-          <div class="card">
-            <h2 class="headline" id="confirm-headline" data-text="confirmTitle">Letzter Blick</h2>
+        <section class="screen screen--sheet" data-screen="confirm" aria-labelledby="confirm-headline">
+          <div class="card card--sheet">
+            <!-- Scrollbereich: Angaben und Foto. -->
+            <div class="card__scroll">
+              <h2 class="headline" id="confirm-headline" data-text="confirmTitle">Letzter Blick</h2>
 
-            <div class="summary" style="margin-top: var(--sp-4)">
-              <div class="summary__row">
-                <span class="summary__key">Name</span>
-                <span class="summary__value" data-confirm-name></span>
+              <!-- Meldungen stehen oben, damit sie beim Zurückspringen sofort auffallen. -->
+              <div class="notice notice--error" style="margin-top: var(--sp-4)" data-confirm-error hidden></div>
+
+              <div class="summary" style="margin-top: var(--sp-4)">
+                <div class="summary__row">
+                  <span class="summary__key">Name</span>
+                  <span class="summary__value" data-confirm-name></span>
+                </div>
+                <div class="summary__row">
+                  <span class="summary__key">Mission</span>
+                  <span class="summary__value" data-confirm-mission></span>
+                </div>
+                <div class="summary__row">
+                  <span class="summary__key">Foto</span>
+                  <span class="summary__value" data-confirm-file></span>
+                </div>
               </div>
-              <div class="summary__row">
-                <span class="summary__key">Mission</span>
-                <span class="summary__value" data-confirm-mission></span>
+
+              <div class="preview">
+                <img class="preview__image preview__image--small" data-confirm-image alt="Dein Foto vor dem Hochladen" />
               </div>
-              <div class="summary__row">
-                <span class="summary__key">Foto</span>
-                <span class="summary__value" data-confirm-file></span>
-              </div>
+
+              <p class="hint" data-text-privacy="consentHint"></p>
             </div>
 
-            <div class="preview">
-              <img class="preview__image" data-confirm-image alt="Dein Foto vor dem Hochladen" />
-            </div>
+            <!-- Aktionsbereich: Haken und Hochladen bleiben immer sichtbar. -->
+            <div class="card__actions">
+              <label class="checkbox checkbox--tight">
+                <input type="checkbox" data-consent />
+                <span class="checkbox__text" data-text-privacy="consentLabel"></span>
+              </label>
+              <span class="field__error" data-consent-error role="alert"></span>
 
-            <label class="checkbox">
-              <input type="checkbox" data-consent />
-              <span class="checkbox__text" data-text-privacy="consentLabel"></span>
-            </label>
-            <span class="field__error" data-consent-error role="alert"></span>
-
-            <div class="btn-row">
               <button type="button" class="btn btn--primary" data-upload-button>
                 <span data-text="uploadButton">Foto ins Album hochladen</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-back-to-preview>
+              <button type="button" class="btn btn--ghost btn--small" data-back-to-preview>
                 Zurück zur Vorschau
               </button>
             </div>
-
-            <div class="notice notice--error" style="margin-top: var(--sp-4)" data-confirm-error hidden></div>
           </div>
         </section>
 
@@ -389,7 +402,13 @@
               <button type="button" class="btn btn--primary" data-bonus-button hidden>
                 <span data-text="bonusButton">Bonus-Mission ziehen</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-done-button>
+              <button type="button" class="btn btn--primary" data-extra-mission hidden>
+                <span data-text="extraMissionButton">Noch eine Mission ziehen</span>
+              </button>
+              <button type="button" class="btn btn--secondary" data-success-gallery>
+                <span data-text="galleryButton">Zur Galerie</span>
+              </button>
+              <button type="button" class="btn btn--ghost btn--small" data-done-button>
                 <span data-text="doneButton">Fertig</span>
               </button>
             </div>
@@ -414,6 +433,12 @@
               <button type="button" class="btn btn--primary" data-finished-bonus hidden>
                 <span data-text="bonusButton">Bonus-Mission ziehen</span>
               </button>
+              <button type="button" class="btn btn--primary" data-finished-extra hidden>
+                <span data-text="extraMissionButton">Noch eine Mission ziehen</span>
+              </button>
+              <button type="button" class="btn btn--secondary" data-finished-gallery>
+                <span data-text="galleryButton">Zur Galerie</span>
+              </button>
             </div>
           </div>
         </section>
@@ -423,6 +448,10 @@
             <p class="eyebrow">Silberhochzeits-Album</p>
             <h1 class="headline headline--gradient" id="gallery-title" tabindex="-1">Eure schönsten Momente</h1>
             <p class="subline">Entdeckt die Fotos des Abends und schenkt euren Favoriten ein Herz.</p>
+            <p class="hint" style="margin-top: var(--sp-3)">
+              Ein Herz pro Kategorie. Tipp einfach noch einmal, um es wieder wegzunehmen –
+              oder vergib es an ein anderes Foto derselben Kategorie.
+            </p>
           </div>
 
           <div class="gallery-filters">

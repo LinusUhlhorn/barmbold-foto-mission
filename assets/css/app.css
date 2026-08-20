@@ -17,6 +17,101 @@
   display: none !important;
 }
 
+/* =========================================================================
+   BILDSCHIRME MIT FESTER AKTIONSLEISTE (Vorschau und Bestätigen)
+   =========================================================================
+   Auf dem Handy soll der wichtige Knopf ("Dieses Foto verwenden" bzw. der
+   Haken samt "Foto hochladen") IMMER sichtbar sein - auch wenn das Foto
+   hochkant ist und die Karte länger als der Bildschirm wird.
+
+   Dafür klebt der Aktionsbereich unten am Sichtfenster (position: sticky).
+   Wichtig: Die Karte darf dafür NICHT abgeschnitten werden (kein
+   overflow: hidden), sonst wirkt sticky nicht. Das obere Lichtband der Karte
+   wird deshalb weiter unten eigens zurechtgerückt.
+   ========================================================================= */
+
+.card--sheet {
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+/* Das Lichtband der Karte würde ohne Beschnitt an den Ecken überstehen. */
+.card--sheet::before {
+  left: var(--sp-5);
+  right: var(--sp-5);
+}
+
+.card__scroll {
+  /* Nichts Eigenes nötig - der Bereich wächst einfach mit dem Inhalt und
+     wird bei Bedarf mit der Seite gescrollt. */
+  padding-bottom: var(--sp-3);
+}
+
+.card__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  /* Bis an die Kanten der Karte ziehen, damit nichts seitlich durchscrollt. */
+  margin: var(--sp-3) calc(var(--sp-4) * -1) 0;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  /* Vollständig deckend - der Inhalt scrollt darunter durch und darf nicht
+     durchscheinen. */
+  background: var(--c-bg);
+}
+
+/* Weicher Übergang: Der Inhalt verschwindet unter der Leiste, statt an einer
+   harten Kante abgeschnitten zu wirken. */
+.card__actions::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--sp-5);
+  background: linear-gradient(to top, var(--c-bg), transparent);
+  pointer-events: none;
+}
+
+/* Innerhalb der Aktionsleiste sitzen die Knöpfe dichter beieinander. */
+.card__actions .btn-row {
+  margin-top: 0;
+}
+
+/* Zwei Nebenknöpfe teilen sich eine Zeile, statt zwei Zeilen zu belegen. */
+.btn-row--tight {
+  flex-wrap: nowrap;
+  gap: var(--sp-2);
+}
+
+.btn-row--tight .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: var(--sp-3);
+  /* Etwas kleiner, damit die Beschriftung auch auf schmalen Handys
+     einzeilig bleibt. Die Mindesthöhe von 44px bleibt erhalten. */
+  font-size: 0.82rem;
+}
+
+.checkbox--tight {
+  margin-top: 0;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.checkbox--tight .checkbox__text {
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+/* Die Fehlermeldung unter dem Haken braucht nur Platz, wenn sie etwas sagt. */
+.card__actions .field__error:empty {
+  display: none;
+}
+
 .public-gallery {
   width: min(100%, 58rem);
   margin-inline: auto;
@@ -65,6 +160,19 @@
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Platzhalter, wenn ein Bild nicht geladen werden kann. Besser als ein
+   kaputtes Bildsymbol - und man sieht, dass das Foto trotzdem da ist. */
+.public-photo__missing {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: var(--sp-3);
+  text-align: center;
+  font-size: 0.74rem;
+  color: var(--c-text-muted);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -615,12 +723,22 @@
 }
 
 .preview__image {
-  width: 100%;
+  display: block;
+  /* width: auto zusammen mit den beiden Höchstwerten: Der Rahmen legt sich um
+     das Foto, statt bei Hochkant-Bildern breite schwarze Balken zu zeigen. */
+  width: auto;
+  max-width: 100%;
   height: auto;
-  max-height: 62svh;
-  object-fit: contain;
+  /* Bewusst knapp gehalten: So passen Foto UND Knopf auf einen Handy-Bildschirm. */
+  max-height: 46svh;
   margin: 0 auto;
   background: #000;
+}
+
+/* Auf dem Bestätigen-Bildschirm ist das Foto nur noch eine Erinnerung daran,
+   worum es geht - Haken und Hochladen sind wichtiger. */
+.preview__image--small {
+  max-height: 32svh;
 }
 
 .preview__facts {
@@ -966,7 +1084,11 @@
   }
 
   .preview__image {
-    max-height: 48svh;
+    max-height: 40svh;
+  }
+
+  .preview__image--small {
+    max-height: 28svh;
   }
 
   .polaroid {
