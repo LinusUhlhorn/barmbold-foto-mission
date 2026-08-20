@@ -163,6 +163,22 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Das Bild ist ein Knopf: Tippen öffnet es in voller Größe. */
+.public-photo__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.public-photo__open:focus-visible {
+  outline: 3px solid var(--c-gold);
+  outline-offset: -3px;
+}
+
 /* Platzhalter, wenn ein Bild nicht geladen werden kann. Besser als ein
    kaputtes Bildsymbol - und man sieht, dass das Foto trotzdem da ist. */
 .public-photo__missing {
@@ -210,7 +226,11 @@
   padding: var(--sp-2) var(--sp-3);
 }
 
-.public-photo__like.is-liked {
+/* Der zweite Selektor ist kein Versehen: Ohne ihn gewinnt die allgemeine
+   Hover-Regel von .btn--secondary, und ein vergebenes Herz stünde unter dem
+   Mauszeiger dunkel auf hellgrau da. */
+.public-photo__like.is-liked,
+.public-photo__like.is-liked:hover:not(:disabled) {
   color: #151719;
   background: var(--c-gold-soft);
 }
@@ -219,6 +239,120 @@
   .public-gallery__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* =========================================================================
+   FOTO IN VOLLER GRÖSSE
+   =========================================================================
+   Gleiche Bedienung wie im Album: blättern mit den Pfeilen, den Pfeiltasten
+   oder per Wisch, schließen mit Escape oder Tippen neben das Bild.
+   ========================================================================= */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  background: rgba(9, 10, 11, 0.97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding:
+    calc(env(safe-area-inset-top) + var(--sp-3)) var(--sp-3)
+    calc(env(safe-area-inset-bottom) + var(--sp-3));
+}
+
+.lightbox.is-open {
+  display: flex;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.lightbox__stage {
+  flex: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  /* Waagerechtes Wischen gehört uns, senkrechtes Scrollen dem Browser. */
+  touch-action: pan-y;
+}
+
+.lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  animation: lightbox-in 0.3s var(--ease) both;
+}
+
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--touch);
+  height: var(--touch);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--c-border);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.lightbox__nav--prev {
+  left: 0;
+}
+
+.lightbox__nav--next {
+  right: 0;
+}
+
+.lightbox__caption {
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.lightbox__caption strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+}
+
+.lightbox__meta {
+  color: var(--c-text-muted);
+  font-size: 0.82rem;
+}
+
+.lightbox__tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.lightbox__tools .public-photo__like {
+  min-width: 6rem;
 }
 
 @media (max-width: 28rem) {

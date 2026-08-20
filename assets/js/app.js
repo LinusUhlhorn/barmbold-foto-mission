@@ -7,7 +7,16 @@
 // =========================================================================
 
 import { PARTY_CONFIG } from '../../config/party-config.js';
-import { $, announce, clear, el, isTestMode, prefersReducedMotion, wait } from './lib/dom.js';
+import {
+  $,
+  announce,
+  clear,
+  el,
+  isTestMode,
+  prefersReducedMotion,
+  trapFocus,
+  wait,
+} from './lib/dom.js';
 import { applyBigNumber, applyEffects, applyTheme } from './lib/theme.js';
 import { createIcon } from './lib/icons.js';
 import { fillTemplate, formatBytes, validateName } from './lib/text.js';
@@ -68,6 +77,10 @@ const gallery = {
   loaded: false,
   loading: false,
   loadedAt: 0,
+  // Vollbild-Betrachter: die gerade sichtbare Reihenfolge und die Stelle darin.
+  viewRows: [],
+  viewIndex: -1,
+  releaseTrap: null,
 };
 
 const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v2';
@@ -197,12 +210,16 @@ function likeLabel(row, liked) {
 /** Aktualisiert einen einzelnen Herz-Knopf, ohne die Galerie neu aufzubauen. */
 function refreshLikeButton(id) {
   const card = gallery.cards.get(id);
-  if (!card) return;
-  const liked = gallery.votes.has(id);
-  card.button.classList.toggle('is-liked', liked);
-  card.button.setAttribute('aria-pressed', String(liked));
-  card.button.setAttribute('aria-label', likeLabel(card.row, liked));
-  card.countNode.textContent = String(Number(card.row.likes_count || 0));
+  if (card) {
+    const liked = gallery.votes.has(id);
+    card.button.classList.toggle('is-liked', liked);
+    card.button.setAttribute('aria-pressed', String(liked));
+    card.button.setAttribute('aria-label', likeLabel(card.row, liked));
+    card.countNode.textContent = String(Number(card.row.likes_count || 0));
+  }
+  // Das Foto kann gerade auch in voller Größe zu sehen sein.
+  const shown = photoViewRow();
+  if (shown && shown.id === id) refreshLightboxLike();
 }
 
 /**
@@ -252,6 +269,100 @@ async function toggleLike(row, button) {
   }
 }
 
+// -------------------------------------------------------------------------
+// Foto in voller Groesse
+// -------------------------------------------------------------------------
+
+/** Das gerade gross gezeigte Foto (oder null). */
+function photoViewRow() {
+  return gallery.viewRows[gallery.viewIndex] || null;
+}
+
+/** Herz-Knopf im Vollbild auf den neuesten Stand bringen. */
+function refreshLightboxLike() {
+  const row = photoViewRow();
+  const button = $('[data-lightbox-like]');
+  if (!row || !button) return;
+  const liked = gallery.votes.has(row.id);
+  clear(button);
+  button.classList.toggle('is-liked', liked);
+  button.setAttribute('aria-pressed', String(liked));
+  button.setAttribute('aria-label', likeLabel(row, liked));
+  button.disabled = !supabaseReady;
+  button.appendChild(createIcon('heart', { size: 18 }));
+  button.appendChild(el('span', { text: String(Number(row.likes_count || 0)) }));
+}
+
+function renderPhotoView() {
+  const row = photoViewRow();
+  if (!row) return;
+
+  const image = $('[data-lightbox-image]');
+  image.src = gallery.urls.get(row.storage_path) || '';
+  image.alt = `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`;
+
+  setText('[data-lightbox-name]', row.guest_name || 'Ohne Namen');
+  setText(
+    '[data-lightbox-meta]',
+    [row.mission_title, row.mission_category].filter(Boolean).join(' · '),
+  );
+  setText('[data-lightbox-position]', `${gallery.viewIndex + 1} von ${gallery.viewRows.length}`);
+
+  // Bei einem einzigen Foto braucht niemand Blätterpfeile.
+  const single = gallery.viewRows.length < 2;
+  $('[data-lightbox-prev]').hidden = single;
+  $('[data-lightbox-next]').hidden = single;
+
+  refreshLightboxLike();
+}
+
+/**
+ * Oeffnet ein Foto in voller Groesse. Geblaettert wird genau in der
+ * Reihenfolge, die gerade in der Galerie zu sehen ist.
+ */
+function openPhotoView(id) {
+  // Nur Fotos, deren Bild wirklich da ist - sonst zeigt das Vollbild nichts.
+  const rows = galleryRowsForView().filter((row) => gallery.urls.has(row.storage_path));
+  const index = rows.findIndex((row) => row.id === id);
+  if (index < 0) return;
+
+  gallery.viewRows = rows;
+  gallery.viewIndex = index;
+
+  const box = $('[data-lightbox]');
+  box.classList.add('is-open');
+  // Die Seite dahinter soll nicht mitscrollen.
+  document.body.style.overflow = 'hidden';
+  gallery.releaseTrap = trapFocus(box);
+  renderPhotoView();
+  $('[data-lightbox-close]').focus();
+  sound.tap();
+}
+
+function closePhotoView() {
+  const box = $('[data-lightbox]');
+  if (!box.classList.contains('is-open')) return;
+  box.classList.remove('is-open');
+  document.body.style.overflow = '';
+  if (gallery.releaseTrap) {
+    gallery.releaseTrap();
+    gallery.releaseTrap = null;
+  }
+
+  // Zurueck auf die Kachel, von der aus geoeffnet wurde.
+  const row = photoViewRow();
+  gallery.viewIndex = -1;
+  const card = row ? gallery.cards.get(row.id) : null;
+  if (card && card.opener) card.opener.focus({ preventScroll: true });
+}
+
+function stepPhotoView(delta) {
+  const count = gallery.viewRows.length;
+  if (count < 2) return;
+  gallery.viewIndex = (gallery.viewIndex + delta + count) % count;
+  renderPhotoView();
+}
+
 function renderPublicGallery() {
   const grid = $('[data-public-gallery-grid]');
   const empty = $('[data-public-gallery-empty]');
@@ -264,21 +375,37 @@ function renderPublicGallery() {
     const card = el('article', { className: 'public-photo' });
     const url = gallery.urls.get(row.storage_path);
 
+    let opener = null;
     if (url) {
       const image = el('img', {
         className: 'public-photo__image',
         attrs: {
           src: url,
-          alt: `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`,
+          alt: '',
           loading: 'lazy',
         },
       });
+      // Das Bild sitzt in einem Knopf: Tippen zeigt es in voller Groesse.
+      opener = el('button', {
+        className: 'public-photo__open',
+        attrs: {
+          type: 'button',
+          'aria-label': `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${
+            row.mission_title || ''
+          } groß ansehen`,
+        },
+      });
+      opener.appendChild(image);
+      opener.addEventListener('click', () => openPhotoView(row.id));
+
       // Laedt das Bild nicht (abgelaufener Link, Funkloch), bleibt keine
       // kaputte Grafik stehen, sondern ein ruhiger Platzhalter.
       image.addEventListener('error', () => {
-        image.replaceWith(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+        opener.replaceWith(
+          el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }),
+        );
       });
-      card.appendChild(image);
+      card.appendChild(opener);
     } else {
       card.appendChild(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
     }
@@ -305,7 +432,7 @@ function renderPublicGallery() {
     like.disabled = !supabaseReady;
     like.addEventListener('click', () => toggleLike(row, like));
 
-    gallery.cards.set(row.id, { row, button: like, countNode });
+    gallery.cards.set(row.id, { row, button: like, countNode, opener });
     footer.appendChild(like);
     body.appendChild(footer);
     card.appendChild(body);
@@ -1129,6 +1256,59 @@ function bindEvents() {
   }
   $('[data-public-gallery-category]').addEventListener('change', renderPublicGallery);
   $('[data-public-gallery-sort]').addEventListener('change', renderPublicGallery);
+
+  // ---- Foto in voller Groesse ----
+  const lightbox = $('[data-lightbox]');
+  $('[data-lightbox-close]').addEventListener('click', closePhotoView);
+  $('[data-lightbox-prev]').addEventListener('click', () => stepPhotoView(-1));
+  $('[data-lightbox-next]').addEventListener('click', () => stepPhotoView(1));
+  $('[data-lightbox-like]').addEventListener('click', (event) => {
+    const row = photoViewRow();
+    if (row) toggleLike(row, event.currentTarget);
+  });
+
+  // Tippen neben das Foto schliesst das Vollbild.
+  lightbox.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target === lightbox || target.hasAttribute('data-lightbox-stage')) closePhotoView();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!lightbox.classList.contains('is-open')) return;
+    if (event.key === 'Escape') closePhotoView();
+    else if (event.key === 'ArrowLeft') stepPhotoView(-1);
+    else if (event.key === 'ArrowRight') stepPhotoView(1);
+  });
+
+  // Wischen zum Blättern - auf dem Handy die naheliegendste Geste.
+  const stage = $('[data-lightbox-stage]');
+  let swipeX = 0;
+  let swipeY = 0;
+  stage.addEventListener(
+    'touchstart',
+    (event) => {
+      const touch = event.changedTouches[0];
+      swipeX = touch.clientX;
+      swipeY = touch.clientY;
+    },
+    { passive: true },
+  );
+  stage.addEventListener(
+    'touchend',
+    (event) => {
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - swipeX;
+      const dy = touch.clientY - swipeY;
+      // Nur eindeutig waagerechte Bewegungen zaehlen als Wisch.
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepPhotoView(dx < 0 ? 1 : -1);
+    },
+    { passive: true },
+  );
+
+  // Symbole in die Knöpfe setzen
+  $('[data-lightbox-close]').appendChild(createIcon('x', { size: 20 }));
+  $('[data-lightbox-prev]').appendChild(createIcon('chevronLeft', { size: 22 }));
+  $('[data-lightbox-next]').appendChild(createIcon('chevronRight', { size: 22 }));
 
   const privacyDialog = $('[data-privacy-dialog]');
   $('[data-privacy-open]').addEventListener('click', () => privacyDialog.showModal());
