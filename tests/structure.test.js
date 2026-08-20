@@ -251,6 +251,39 @@ test('Der Aktionsbereich bleibt beim Scrollen stehen', () => {
   assert.match(css, /\.card--sheet \{[^}]*overflow: visible;/);
 });
 
+test('Fotos der Galerie lassen sich in voller Größe ansehen', () => {
+  const html = read('index.html');
+  for (const hook of [
+    'data-lightbox',
+    'data-lightbox-close',
+    'data-lightbox-prev',
+    'data-lightbox-next',
+    'data-lightbox-image',
+    'data-lightbox-stage',
+    'data-lightbox-like',
+    'data-lightbox-position',
+  ]) {
+    assert.ok(html.includes(hook), `Im Vollbild fehlt: ${hook}`);
+  }
+  // Es ist ein echter Dialog, kein bloßes Bild-Overlay.
+  assert.match(html, /class="lightbox"[\s\S]*?role="dialog"[\s\S]*?aria-modal="true"/);
+
+  const code = read('assets/js/app.js');
+  // Bedienung: schließen mit Escape, blättern mit den Pfeiltasten und per Wisch.
+  assert.match(code, /event\.key === 'Escape'/);
+  assert.match(code, /event\.key === 'ArrowLeft'/);
+  assert.match(code, /touchend/, 'Wischen zum Blättern fehlt');
+  // Die Tastatur darf nicht hinter den Dialog entwischen.
+  assert.match(code, /trapFocus/);
+});
+
+test('Ein vergebenes Herz bleibt auch unter dem Mauszeiger lesbar', () => {
+  // Ohne die zweite Regel gewinnt der Hover-Zustand von .btn--secondary,
+  // und dunkle Schrift stünde auf hellgrauem Grund.
+  const css = read('assets/css/app.css').replace(/\s+/g, ' ');
+  assert.match(css, /\.public-photo__like\.is-liked:hover:not\(:disabled\)/);
+});
+
 test('Nach dem Pflichtteil geht es freiwillig weiter oder in die Galerie', () => {
   const html = read('index.html');
   for (const hook of [

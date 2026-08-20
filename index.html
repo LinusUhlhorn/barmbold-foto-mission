@@ -449,8 +449,8 @@
             <h1 class="headline headline--gradient" id="gallery-title" tabindex="-1">Eure schönsten Momente</h1>
             <p class="subline">Entdeckt die Fotos des Abends und schenkt euren Favoriten ein Herz.</p>
             <p class="hint" style="margin-top: var(--sp-3)">
-              Ein Herz pro Kategorie. Tipp einfach noch einmal, um es wieder wegzunehmen –
-              oder vergib es an ein anderes Foto derselben Kategorie.
+              Tipp auf ein Foto, um es groß anzusehen. Ein Herz pro Kategorie – noch einmal
+              tippen nimmt es wieder weg, oder du gibst es einem anderen Foto derselben Kategorie.
             </p>
           </div>
 
@@ -488,6 +488,43 @@
           <button class="footer-link" type="button" data-privacy-open>Datenschutz</button>
         </p>
       </footer>
+    </div>
+
+    <!-- Foto in voller Größe. Öffnet sich beim Tippen auf ein Bild in der Galerie. -->
+    <div
+      class="lightbox"
+      data-lightbox
+      role="dialog"
+      aria-modal="true"
+      aria-label="Foto in voller Größe"
+    >
+      <div class="lightbox__bar">
+        <span class="hint" data-lightbox-position></span>
+        <button type="button" class="btn btn--icon" data-lightbox-close>
+          <span class="visually-hidden">Vollbild schließen</span>
+        </button>
+      </div>
+
+      <div class="lightbox__stage" data-lightbox-stage>
+        <button type="button" class="lightbox__nav lightbox__nav--prev" data-lightbox-prev>
+          <span class="visually-hidden">Vorheriges Foto</span>
+        </button>
+        <img class="lightbox__image" data-lightbox-image alt="" />
+        <button type="button" class="lightbox__nav lightbox__nav--next" data-lightbox-next>
+          <span class="visually-hidden">Nächstes Foto</span>
+        </button>
+      </div>
+
+      <div class="lightbox__caption">
+        <strong data-lightbox-name></strong>
+        <span class="lightbox__meta" data-lightbox-meta></span>
+      </div>
+
+      <div class="lightbox__tools">
+        <button type="button" class="btn btn--secondary public-photo__like" data-lightbox-like>
+          <span class="visually-hidden">Herz vergeben</span>
+        </button>
+      </div>
     </div>
 
     <dialog class="privacy-dialog" data-privacy-dialog aria-labelledby="privacy-title">
