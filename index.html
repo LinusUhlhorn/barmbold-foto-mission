@@ -80,12 +80,15 @@
         </div>
       </header>
 
-      <nav class="app-tabs" aria-label="Hauptbereiche">
+      <nav class="app-tabs app-tabs--three" aria-label="Hauptbereiche">
         <button class="app-tabs__button is-active" type="button" data-view-tab="mission" aria-pressed="true">
-          Mission starten
+          Mission
         </button>
         <button class="app-tabs__button" type="button" data-view-tab="gallery" aria-pressed="false">
           Galerie
+        </button>
+        <button class="app-tabs__button" type="button" data-view-tab="memories" aria-pressed="false" data-memories-tab>
+          Für Britta &amp; Lutz
         </button>
       </nav>
 
@@ -412,6 +415,14 @@
                 <span data-text="doneButton">Fertig</span>
               </button>
             </div>
+
+            <!-- Dezenter Hinweis auf den privaten Bereich -->
+            <div class="memories-hint" data-memories-hint hidden>
+              <p class="hint" data-text-memories="missionHint"></p>
+              <button type="button" class="btn btn--ghost btn--small" data-memories-jump>
+                <span data-text-memories="missionHintButton">Erinnerungen hochladen</span>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -438,6 +449,14 @@
               </button>
               <button type="button" class="btn btn--secondary" data-finished-gallery>
                 <span data-text="galleryButton">Zur Galerie</span>
+              </button>
+            </div>
+
+            <!-- Dezenter Hinweis auf den privaten Bereich -->
+            <div class="memories-hint" data-memories-hint-2 hidden>
+              <p class="hint" data-text-memories="missionHint"></p>
+              <button type="button" class="btn btn--ghost btn--small" data-memories-jump-2>
+                <span data-text-memories="missionHintButton">Erinnerungen hochladen</span>
               </button>
             </div>
           </div>
@@ -475,6 +494,169 @@
           <div class="public-gallery__grid" data-public-gallery-grid></div>
           <div class="empty" data-public-gallery-empty hidden>
             Noch sind keine Fotos in der Galerie. Das erste Foto wartet auf euch.
+          </div>
+        </section>
+
+        <!-- ============================================================
+             PRIVATER BEREICH: FÜR BRITTA & LUTZ
+             Diese Aufnahmen erscheinen NIEMALS in der Galerie.
+             ============================================================ -->
+        <section class="memories" data-memories hidden aria-labelledby="memories-title">
+          <div class="gallery-heading">
+            <p class="eyebrow">Nur für das Jubelpaar</p>
+            <h1 class="headline headline--gradient" id="memories-title" tabindex="-1" data-text-memories="title">
+              Eine Erinnerung an diesen Abend
+            </h1>
+            <p class="subline" data-text-memories="intro"></p>
+          </div>
+
+          <p class="private-badge" data-text-memories="privateBadge"></p>
+
+          <!-- ---------- Formular ---------- -->
+          <form class="card memories-form" data-memories-form novalidate>
+            <div class="field">
+              <label class="field__label" for="memory-name" data-text-memories="nameLabel">
+                Wie heißt du?
+              </label>
+              <input
+                class="field__input"
+                id="memory-name"
+                name="memoryName"
+                type="text"
+                autocomplete="given-name"
+                maxlength="40"
+                spellcheck="false"
+                aria-describedby="memory-name-hint memory-name-error"
+                data-memory-name
+              />
+              <span class="hint" id="memory-name-hint" data-text-memories="nameHint"></span>
+              <span class="field__error" id="memory-name-error" role="alert"></span>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="memory-message" data-text-memories="messageLabel">
+                Persönliche Nachricht (optional)
+              </label>
+              <textarea
+                class="field__input memories-message"
+                id="memory-message"
+                name="memoryMessage"
+                rows="3"
+                maxlength="1000"
+                data-memory-message
+              ></textarea>
+              <span class="hint" data-memory-message-count></span>
+            </div>
+
+            <!-- ---------- Fotos ---------- -->
+            <div class="dropbox" data-memory-box="photo">
+              <div class="dropbox__head">
+                <span class="dropbox__icon" data-memory-icon="photo" aria-hidden="true"></span>
+                <p class="dropbox__title" data-text-memories="photoBoxTitle">Fotos hinzufügen</p>
+              </div>
+              <p class="dropbox__counter" data-memory-counter="photo" role="status">
+                Fotos: 0 von 20 ausgewählt
+              </p>
+              <p class="hint" data-memory-formats="photo"></p>
+              <button type="button" class="btn btn--secondary" data-memory-add="photo">
+                Fotos auswählen
+              </button>
+              <p class="notice notice--warn dropbox__full" data-memory-full="photo" hidden></p>
+            </div>
+            <input
+              class="file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
+              multiple
+              data-memory-input="photo"
+            />
+
+            <!-- ---------- Videos ---------- -->
+            <div class="dropbox" data-memory-box="video">
+              <div class="dropbox__head">
+                <span class="dropbox__icon" data-memory-icon="video" aria-hidden="true"></span>
+                <p class="dropbox__title" data-text-memories="videoBoxTitle">Videos hinzufügen</p>
+              </div>
+              <p class="dropbox__counter" data-memory-counter="video" role="status">
+                Videos: 0 von 5 ausgewählt
+              </p>
+              <p class="hint" data-text-memories="videoHint"></p>
+              <p class="hint" data-memory-formats="video"></p>
+              <button type="button" class="btn btn--secondary" data-memory-add="video">
+                Videos auswählen
+              </button>
+              <p class="notice notice--warn dropbox__full" data-memory-full="video" hidden></p>
+            </div>
+            <input
+              class="file-input"
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,video/*"
+              multiple
+              data-memory-input="video"
+            />
+
+            <div class="notice notice--error memories-error" data-memory-error hidden></div>
+
+            <!-- ---------- Ausgewählte Dateien ---------- -->
+            <div class="memory-group" data-memory-group="photo" hidden>
+              <h2 class="memory-group__title" data-memory-group-title="photo">Deine Fotos</h2>
+              <ul class="memory-list" data-memory-list="photo"></ul>
+            </div>
+            <div class="memory-group" data-memory-group="video" hidden>
+              <h2 class="memory-group__title" data-memory-group-title="video">Deine Videos</h2>
+              <ul class="memory-list" data-memory-list="video"></ul>
+            </div>
+
+            <div class="summary memories-summary" data-memory-summary hidden></div>
+
+            <div class="card__actions">
+              <button type="submit" class="btn btn--primary" data-memory-submit disabled>
+                <span data-text-memories="uploadButton">Erinnerung hochladen</span>
+              </button>
+              <p class="hint" data-memory-submit-hint></p>
+            </div>
+          </form>
+
+          <!-- ---------- Upload läuft ---------- -->
+          <div class="card memories-progress" data-memory-progress hidden>
+            <h2 class="headline">Deine Erinnerungen werden gespeichert …</h2>
+            <div class="progress">
+              <div
+                class="progress__track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-label="Fortschritt beim Hochladen"
+                data-memory-progress-track
+              >
+                <div class="progress__bar" data-memory-progress-bar></div>
+              </div>
+              <p class="progress__label">
+                <span data-memory-progress-text>Wird vorbereitet …</span>
+                <span data-memory-progress-percent></span>
+              </p>
+            </div>
+            <p class="hint" data-memory-progress-file></p>
+            <div class="notice notice--warn" data-memory-progress-warn hidden></div>
+          </div>
+
+          <!-- ---------- Geschafft ---------- -->
+          <div class="card card--gold memories-success" data-memory-success hidden>
+            <svg class="hero__ring" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M7.5 12.5 10.5 15.5 16.5 9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <h2 class="headline" data-text-memories="successTitle" tabindex="-1" data-memory-success-title>
+              Vielen Dank!
+            </h2>
+            <p class="subline" data-text-memories="successText"></p>
+            <div class="summary" style="margin-top: var(--sp-5); text-align: left" data-memory-success-summary></div>
+            <div class="btn-row">
+              <button type="button" class="btn btn--secondary" data-memory-again>
+                <span data-text-memories="moreButton">Weitere Erinnerungen hochladen</span>
+              </button>
+            </div>
           </div>
         </section>
       </main>

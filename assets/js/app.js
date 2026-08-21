@@ -37,6 +37,7 @@ import {
 } from './lib/supabase-rest.js';
 import { savePending, loadPending, clearPending } from './lib/idb.js';
 import { createSound, vibrate } from './lib/sound.js';
+import { initMemories } from './memories.js';
 
 const config = PARTY_CONFIG;
 const storage = browserStorage();
@@ -86,6 +87,10 @@ const gallery = {
 const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v2';
 
 const live = $('[data-live]');
+
+// Der private Bereich "Fuer Britta & Lutz". Wird beim Start aufgebaut und
+// bleibt null, wenn er in der Konfiguration abgeschaltet ist.
+let memories = null;
 
 // -------------------------------------------------------------------------
 // Bildschirme
@@ -159,17 +164,30 @@ function rememberVotes(votes) {
   storage.set(GALLERY_VOTES_KEY, Object.fromEntries([...votes].slice(-300)));
 }
 
+/**
+ * Wechselt zwischen den drei Hauptbereichen:
+ *   mission   - die Foto-Mission (die einzelnen Bildschirme)
+ *   gallery   - die oeffentliche Galerie
+ *   memories  - der private Bereich "Fuer Britta & Lutz"
+ * @param {'mission'|'gallery'|'memories'} view
+ */
 function setMainView(view) {
   const isGallery = view === 'gallery';
+  const isMemories = view === 'memories';
   const main = $('#hauptbereich');
   const galleryNode = $('[data-public-gallery]');
-  main.classList.toggle('is-gallery', isGallery);
+  const memoriesNode = $('[data-memories]');
+  // Ein Datenattribut statt mehrerer Klassen: So bleibt immer genau ein
+  // Bereich sichtbar, auch wenn spaeter noch einer dazukommt.
+  main.dataset.view = view;
   galleryNode.hidden = !isGallery;
+  if (memoriesNode) memoriesNode.hidden = !isMemories;
   for (const button of document.querySelectorAll('[data-view-tab]')) {
     const active = button.dataset.viewTab === view;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-pressed', String(active));
   }
+  if (isMemories && memories) memories.focus();
   if (isGallery) {
     // Nur neu laden, wenn die Bildlinks abzulaufen drohen - sonst reicht das,
     // was schon da ist, und die Galerie steht sofort.
@@ -1115,6 +1133,7 @@ function showSuccess(wasDuplicate) {
   extraButton.hidden = allowance.canRegular || allowance.canBonus || !allowance.canExtra;
   doneButton.hidden = allowance.canRegular || allowance.canBonus;
 
+  showMemoriesHint();
   showScreen('success');
   fireConfetti();
   announce(
@@ -1161,6 +1180,7 @@ function showFinished() {
   $('[data-finished-extra]').hidden =
     allowance.canRegular || allowance.canBonus || !allowance.canExtra;
 
+  showMemoriesHint();
   showScreen('finished');
 }
 
@@ -1205,6 +1225,47 @@ async function restorePendingPhoto() {
   showPreview();
   announce(live, 'Dein Foto von eben ist noch da.');
   return true;
+}
+
+// -------------------------------------------------------------------------
+// Privater Bereich "Fuer Britta & Lutz"
+// -------------------------------------------------------------------------
+
+/**
+ * Baut den privaten Bereich auf - oder blendet ihn samt Menuepunkt aus,
+ * wenn er in der Konfiguration abgeschaltet ist.
+ */
+function setupMemories() {
+  const tab = $('[data-memories-tab]');
+  const section = $('[data-memories]');
+  if (!config.memories || config.memories.enabled === false) {
+    if (tab) tab.remove();
+    if (section) section.remove();
+    for (const hinweis of document.querySelectorAll('[data-memories-hint], [data-memories-hint-2]')) {
+      hinweis.remove();
+    }
+    return;
+  }
+
+  if (tab && config.memories.tabLabel) tab.textContent = config.memories.tabLabel;
+
+  memories = initMemories({
+    config,
+    supabase,
+    supabaseReady,
+    live,
+    sound,
+    validateName,
+    showView: setMainView,
+  });
+}
+
+/** Blendet den Hinweis auf den privaten Bereich ein. */
+function showMemoriesHint() {
+  if (!memories) return;
+  for (const hinweis of document.querySelectorAll('[data-memories-hint], [data-memories-hint-2]')) {
+    hinweis.hidden = false;
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -1465,6 +1526,7 @@ async function init() {
   // Gemerkte Herzen als erste Anzeige; die Datenbank korrigiert sie beim Laden.
   gallery.votes = storedVotes();
   buildPublicGalleryCategories();
+  setupMemories();
   setupTestMode();
   bindEvents();
 

@@ -50,3 +50,8 @@ desktop.ini
 .vscode/
 *.swp
 *~
+
+# ---------------------------------------------------------------
+# Der Gesamtexport der privaten Erinnerungen bleibt lokal.
+# ---------------------------------------------------------------
+export/

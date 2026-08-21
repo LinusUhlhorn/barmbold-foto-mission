@@ -18,6 +18,7 @@ import { formatBytes, formatDateTime, truncate } from './lib/text.js';
 import { tabStorage } from './lib/storage.js';
 import { createSupabaseClient, describeError, isSupabaseConfigured } from './lib/supabase-rest.js';
 import { createZip } from './lib/zip.js';
+import { initAlbumMemories } from './album-memories.js';
 
 const config = PARTY_CONFIG;
 const session = tabStorage();
@@ -39,6 +40,10 @@ const state = {
   pendingDelete: null,
   releaseTrap: null,
 };
+
+// Der Adminbereich fuer die privaten Erinnerungen. Wird nach der Anmeldung
+// aufgebaut und bleibt null, solange der Bereich abgeschaltet ist.
+let memories = null;
 
 // -------------------------------------------------------------------------
 // Hilfsfunktionen
@@ -87,6 +92,23 @@ function showLogin() {
 function showAlbum() {
   $('[data-view="login"]').hidden = true;
   $('[data-view="album"]').hidden = false;
+  setupMemories();
+}
+
+/**
+ * Baut den Adminbereich fuer die privaten Erinnerungen auf - oder entfernt
+ * ihn samt Umschalter, wenn der Bereich abgeschaltet ist.
+ */
+function setupMemories() {
+  if (memories) return;
+  const umschalter = $('[data-view-button="memories"]');
+  const bereich = $('[data-memories-view]');
+  if (!config.memories || config.memories.enabled === false || !supabase) {
+    if (umschalter) umschalter.remove();
+    if (bereich) bereich.remove();
+    return;
+  }
+  memories = initAlbumMemories({ config, supabase, live, showNotice, askDelete });
 }
 
 async function restoreSession() {
@@ -329,10 +351,25 @@ function render() {
   const timeline = $('[data-timeline]');
   const sheet = $('[data-sheet]');
   const empty = $('[data-empty]');
+  const memoriesView = $('[data-memories-view]');
+  const istErinnerungen = state.view === 'memories';
 
   grid.hidden = state.view !== 'grid';
   timeline.hidden = state.view !== 'timeline';
   sheet.hidden = state.view !== 'sheet';
+  if (memoriesView) memoriesView.hidden = !istErinnerungen;
+
+  // In der Ansicht der privaten Erinnerungen haben die Filter und die
+  // Auswahlleiste der Foto-Mission nichts zu suchen.
+  $('.filters').hidden = istErinnerungen;
+  $('[data-album-meta]').hidden = istErinnerungen;
+  // Alles, was nur zur Foto-Mission gehoert, verschwindet ebenfalls.
+  for (const node of $$('[data-mission-only]')) node.hidden = istErinnerungen;
+  if (istErinnerungen) {
+    empty.hidden = true;
+    $('[data-selectbar]').hidden = true;
+    return;
+  }
 
   $('[data-album-meta]').textContent =
     `${state.rows.length} Fotos insgesamt · ${state.visible.length} angezeigt` +
@@ -667,8 +704,13 @@ async function downloadMany(rows, zipName) {
 // Loeschen
 // -------------------------------------------------------------------------
 
+/**
+ * Sicherheitsabfrage vor dem Loeschen.
+ * Nimmt entweder eine Liste von Missionsfotos oder einen Auftrag aus dem
+ * Bereich der privaten Erinnerungen ({art, upload, file}) entgegen.
+ */
 function askDelete(rows, titleText, bodyText) {
-  if (rows.length === 0) return;
+  if (Array.isArray(rows) && rows.length === 0) return;
   state.pendingDelete = rows;
   $('[data-dialog-title]').textContent = titleText;
   $('[data-dialog-text]').textContent = bodyText;
@@ -690,11 +732,28 @@ function closeDialog() {
 
 async function confirmDelete() {
   const rows = state.pendingDelete;
-  if (!rows || rows.length === 0) return;
+  if (!rows) return;
   const button = $('[data-dialog-confirm]');
   const errorNode = $('[data-dialog-error]');
   button.disabled = true;
   showNotice(errorNode, null);
+
+  // Private Erinnerungen haben ihren eigenen Weg (eigene Tabellen, eigener
+  // Bucket). Sie kommen als Auftrag statt als Liste herein.
+  if (!Array.isArray(rows)) {
+    try {
+      await memories.performDelete(rows);
+      closeDialog();
+      announce(live, 'Die private Erinnerung wurde gelöscht.');
+    } catch (error) {
+      showNotice(errorNode, `Löschen fehlgeschlagen: ${describeError(error)}`);
+    } finally {
+      button.disabled = false;
+    }
+    return;
+  }
+
+  if (rows.length === 0) return;
 
   try {
     const paths = rows.map((row) => row.storage_path).filter(Boolean);
@@ -735,6 +794,9 @@ function bindEvents() {
         other.setAttribute('aria-selected', String(other === button));
       }
       render();
+      // Die privaten Erinnerungen werden erst geladen, wenn sie wirklich
+      // gebraucht werden - und danach nur, wenn die Links zu altern drohen.
+      if (state.view === 'memories' && memories && memories.isStale()) memories.load();
     });
   }
 
