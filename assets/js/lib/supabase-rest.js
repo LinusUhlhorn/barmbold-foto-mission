@@ -70,8 +70,24 @@ export function describeError(error) {
 }
 
 /**
+ * Verpackt Text nach Base64 - das TUS-Verfahren verlangt das fuer die
+ * Angaben zur Datei. Im Browser gibt es btoa, in Node nur Buffer.
+ * @param {string} value
+ * @returns {string}
+ */
+export function base64(value) {
+  const text = String(value == null ? '' : value);
+  const bytes = new TextEncoder().encode(text);
+  let binaer = '';
+  for (const byte of bytes) binaer += String.fromCharCode(byte);
+  if (typeof globalThis.btoa === 'function') return globalThis.btoa(binaer);
+  return Buffer.from(bytes).toString('base64');
+}
+
+/**
  * Erzeugt den Client.
- * @param {{url: string, anonKey: string, bucket: string, table: string}} config
+ * @param {{url: string, anonKey: string, bucket: string, table: string,
+ *          memoriesBucket?: string, memoriesTable?: string, memoriesFilesTable?: string}} config
  * @param {{fetchImpl?: Function, xhrFactory?: Function}} [deps]
  */
 export function createSupabaseClient(config, deps = {}) {
@@ -79,6 +95,10 @@ export function createSupabaseClient(config, deps = {}) {
   const anonKey = String(config.anonKey || '');
   const bucket = String(config.bucket || 'party-photos');
   const table = String(config.table || 'photo_submissions');
+  // Privater Bereich "Fuer Britta & Lutz" - voellig getrennt von der Mission.
+  const memoriesBucket = String(config.memoriesBucket || 'private-memories');
+  const memoriesTable = String(config.memoriesTable || 'private_memory_uploads');
+  const memoriesFilesTable = String(config.memoriesFilesTable || 'private_memory_files');
 
   const doFetch =
     deps.fetchImpl || ((...args) => globalThis.fetch(...args));
@@ -327,10 +347,10 @@ export function createSupabaseClient(config, deps = {}) {
      * Browsern zuverlaessig gemeldet wird.
      * @param {{path: string, blob: Blob, onProgress?: Function, signal?: AbortSignal, timeoutMs?: number}} params
      */
-    uploadPhoto({ path, blob, onProgress, signal, timeoutMs = 120000 }) {
+    uploadPhoto({ path, blob, onProgress, signal, timeoutMs = 120000, bucketName = bucket }) {
       return new Promise((resolve, reject) => {
         const xhr = makeXhr();
-        const url = `${baseUrl}/storage/v1/object/${encodeURIComponent(bucket)}/${path
+        const url = `${baseUrl}/storage/v1/object/${encodeURIComponent(bucketName)}/${path
           .split('/')
           .map(encodeURIComponent)
           .join('/')}`;
@@ -421,7 +441,7 @@ export function createSupabaseClient(config, deps = {}) {
      * @param {number} expiresIn Sekunden
      * @returns {Promise<Map<string, string>>}
      */
-    async createSignedUrls(paths, expiresIn = 600) {
+    async createSignedUrls(paths, expiresIn = 600, bucketName = bucket) {
       const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
       const result = new Map();
       if (list.length === 0) return result;
@@ -431,7 +451,7 @@ export function createSupabaseClient(config, deps = {}) {
       for (let i = 0; i < list.length; i += chunkSize) {
         const chunk = list.slice(i, i + chunkSize);
         const response = await doFetch(
-          `${baseUrl}/storage/v1/object/sign/${encodeURIComponent(bucket)}`,
+          `${baseUrl}/storage/v1/object/sign/${encodeURIComponent(bucketName)}`,
           {
             method: 'POST',
             headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -461,17 +481,287 @@ export function createSupabaseClient(config, deps = {}) {
     },
 
     /** Loescht Dateien im Speicher (nur als Admin). */
-    async deletePhotos(paths) {
+    async deletePhotos(paths, bucketName = bucket) {
       const list = (Array.isArray(paths) ? paths : [paths]).filter(Boolean);
       if (list.length === 0) return { deleted: 0 };
       const response = await doFetch(
-        `${baseUrl}/storage/v1/object/${encodeURIComponent(bucket)}`,
+        `${baseUrl}/storage/v1/object/${encodeURIComponent(bucketName)}`,
         {
           method: 'DELETE',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ prefixes: list }),
         },
       );
+      if (!response.ok) throw await readError(response);
+      return { deleted: list.length };
+    },
+
+    // ---------------------------------------------------------------
+    // Private Erinnerungen ("Fuer Britta & Lutz")
+    // ---------------------------------------------------------------
+    // Diese Aufnahmen liegen in einem eigenen, streng privaten Bucket.
+    // Gaeste duerfen ausschliesslich schreiben. Alles Lesende hier
+    // funktioniert nur, wenn ein Album-Admin angemeldet ist - dafuer sorgen
+    // die Regeln in supabase/private-memories.sql.
+
+    /**
+     * Legt einen neuen Upload-Vorgang an.
+     *
+     * Die ID erzeugt die Seite selbst und schickt sie mit. So muss nichts
+     * zurueckgelesen werden - Gaeste haben bewusst kein Leserecht.
+     * @param {object} row
+     */
+    async insertMemoryUpload(row) {
+      const response = await doFetch(`${baseUrl}/rest/v1/${memoriesTable}`, {
+        method: 'POST',
+        headers: authHeaders({
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        }),
+        body: JSON.stringify(row),
+      });
+      if (!response.ok) throw await readError(response);
+      return { inserted: true };
+    },
+
+    /** Traegt eine einzelne hochgeladene Datei ein. */
+    async insertMemoryFile(row) {
+      const response = await doFetch(`${baseUrl}/rest/v1/${memoriesFilesTable}`, {
+        method: 'POST',
+        headers: authHeaders({
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        }),
+        body: JSON.stringify(row),
+      });
+      if (response.ok) return { inserted: true, duplicate: false };
+      const error = await readError(response);
+      // 23505 = diese Datei ist bereits eingetragen. Das passiert bei einem
+      // zweiten Versuch und ist kein Fehler.
+      if (error.code === '23505') return { inserted: false, duplicate: true };
+      throw error;
+    },
+
+    /**
+     * Schliesst einen Upload ab. Die Datenbank zaehlt selbst nach und
+     * entscheidet, ob der Vorgang vollstaendig ist.
+     * @returns {Promise<{status: string, photoCount: number, videoCount: number, totalSize: number}>}
+     */
+    async completeMemoryUpload(uploadId, expectedPhotos, expectedVideos) {
+      const response = await doFetch(`${baseUrl}/rest/v1/rpc/complete_memory_upload`, {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          p_upload_id: uploadId,
+          p_expected_photos: Number(expectedPhotos) || 0,
+          p_expected_videos: Number(expectedVideos) || 0,
+        }),
+      });
+      if (!response.ok) throw await readError(response);
+      const data = (await response.json()) || {};
+      return {
+        status: String(data.status || 'incomplete'),
+        photoCount: Number(data.photo_count) || 0,
+        videoCount: Number(data.video_count) || 0,
+        totalSize: Number(data.total_size) || 0,
+      };
+    },
+
+    /**
+     * Laedt eine private Datei hoch.
+     *
+     * Grosse Dateien (vor allem Videos auf dem Handy) gehen ueber den
+     * unterbrechbaren Weg (TUS): Bricht die Verbindung ab, wird nur der
+     * fehlende Rest nachgereicht statt der ganzen Datei. Klappt das nicht,
+     * wird automatisch der einfache Weg genommen.
+     *
+     * @param {{path: string, file: Blob, onProgress?: Function, signal?: AbortSignal,
+     *          resumableFromBytes?: number, timeoutMs?: number}} params
+     */
+    async uploadMemoryFile({
+      path,
+      file,
+      onProgress,
+      signal,
+      resumableFromBytes = 6 * 1024 * 1024,
+      timeoutMs = 600000,
+    }) {
+      const gross = Number(file.size) > Number(resumableFromBytes);
+      if (gross) {
+        try {
+          return await this.uploadResumable({
+            bucketName: memoriesBucket,
+            path,
+            file,
+            onProgress,
+            signal,
+          });
+        } catch (error) {
+          // Abbruch durch den Gast bleibt ein Abbruch.
+          if (error && error.name === 'AbortError') throw error;
+          // Ist die Datei schon da, ist alles gut.
+          if (error && error.status === 409) return { path, resumed: true };
+          // Sonst: der einfache Weg als Rueckfall.
+          // eslint-disable-next-line no-console
+          console.warn('Unterbrechbarer Upload nicht möglich, nutze den einfachen Weg.', error);
+        }
+      }
+      return this.uploadPhoto({
+        path,
+        blob: file,
+        onProgress,
+        signal,
+        timeoutMs,
+        bucketName: memoriesBucket,
+      });
+    },
+
+    /**
+     * Unterbrechbarer Upload nach dem TUS-Verfahren (Version 1.0.0).
+     *
+     * Ablauf:
+     *   1. POST  legt den Upload an und liefert eine eigene Adresse zurueck.
+     *   2. PATCH schickt die Datei stueckweise (jeweils 6 MB).
+     *   3. HEAD  fragt nach einem Abbruch, wie viel schon angekommen ist.
+     *
+     * @param {{bucketName: string, path: string, file: Blob, onProgress?: Function,
+     *          signal?: AbortSignal, chunkSize?: number}} params
+     */
+    async uploadResumable({
+      bucketName,
+      path,
+      file,
+      onProgress,
+      signal,
+      chunkSize = 6 * 1024 * 1024,
+    }) {
+      const total = Number(file.size) || 0;
+      const meta = [
+        ['bucketName', bucketName],
+        ['objectName', path],
+        ['contentType', file.type || 'application/octet-stream'],
+        ['cacheControl', '3600'],
+      ]
+        .map(([schluessel, wert]) => `${schluessel} ${base64(wert)}`)
+        .join(',');
+
+      // ---- Schritt 1: Upload anlegen ----------------------------------
+      const creation = await doFetch(`${baseUrl}/storage/v1/upload/resumable`, {
+        method: 'POST',
+        headers: authHeaders({
+          'Tus-Resumable': '1.0.0',
+          'Upload-Length': String(total),
+          'Upload-Metadata': meta,
+          // Vorhandene Dateien duerfen NICHT ueberschrieben werden.
+          'x-upsert': 'false',
+        }),
+        signal,
+      });
+      if (!creation.ok) throw await readError(creation);
+      const location = creation.headers.get('location') || creation.headers.get('Location');
+      if (!location) {
+        throw new SupabaseError('Der Server hat keine Upload-Adresse geliefert.', {
+          status: creation.status,
+        });
+      }
+      const uploadUrl = location.startsWith('http') ? location : `${baseUrl}${location}`;
+
+      // ---- Schritt 2: stueckweise senden ------------------------------
+      let offset = 0;
+      let versuche = 0;
+      while (offset < total) {
+        const ende = Math.min(offset + chunkSize, total);
+        try {
+          const patch = await doFetch(uploadUrl, {
+            method: 'PATCH',
+            headers: authHeaders({
+              'Tus-Resumable': '1.0.0',
+              'Upload-Offset': String(offset),
+              'Content-Type': 'application/offset+octet-stream',
+            }),
+            body: file.slice(offset, ende),
+            signal,
+          });
+          if (!patch.ok) throw await readError(patch);
+          const neuerStand = Number(patch.headers.get('upload-offset'));
+          offset = Number.isFinite(neuerStand) && neuerStand > offset ? neuerStand : ende;
+          versuche = 0;
+          if (typeof onProgress === 'function') onProgress(Math.min(0.99, offset / total));
+        } catch (error) {
+          if (error && error.name === 'AbortError') throw error;
+          versuche += 1;
+          if (versuche > 3) throw error;
+          // ---- Schritt 3: nachfragen, was wirklich angekommen ist ----
+          const kopf = await doFetch(uploadUrl, {
+            method: 'HEAD',
+            headers: authHeaders({ 'Tus-Resumable': '1.0.0' }),
+            signal,
+          });
+          if (!kopf.ok) throw error;
+          const stand = Number(kopf.headers.get('upload-offset'));
+          if (!Number.isFinite(stand)) throw error;
+          offset = stand;
+        }
+      }
+
+      if (typeof onProgress === 'function') onProgress(1);
+      return { path, resumable: true };
+    },
+
+    // --- Nur fuer angemeldete Album-Admins ---------------------------
+
+    /** Liest alle privaten Upload-Vorgaenge (neueste zuerst). */
+    async listMemoryUploads() {
+      const response = await doFetch(
+        `${baseUrl}/rest/v1/${memoriesTable}?select=*&order=created_at.desc`,
+        { method: 'GET', headers: authHeaders({ Accept: 'application/json' }) },
+      );
+      if (!response.ok) throw await readError(response);
+      return response.json();
+    },
+
+    /** Liest alle Dateien der privaten Uploads. */
+    async listMemoryFiles() {
+      const response = await doFetch(
+        `${baseUrl}/rest/v1/${memoriesFilesTable}?select=*&order=storage_path.asc`,
+        { method: 'GET', headers: authHeaders({ Accept: 'application/json' }) },
+      );
+      if (!response.ok) throw await readError(response);
+      return response.json();
+    },
+
+    /** Kurzlebige Links fuer die privaten Dateien. */
+    createMemorySignedUrls(paths, expiresIn = 600) {
+      return this.createSignedUrls(paths, expiresIn, memoriesBucket);
+    },
+
+    /** Loescht Dateien im privaten Speicher. */
+    deleteMemoryObjects(paths) {
+      return this.deletePhotos(paths, memoriesBucket);
+    },
+
+    /**
+     * Loescht einen kompletten Upload-Vorgang. Die Dateieintraege verschwinden
+     * durch den Fremdschluessel automatisch mit.
+     */
+    async deleteMemoryUpload(uploadId) {
+      const response = await doFetch(
+        `${baseUrl}/rest/v1/${memoriesTable}?id=eq.${encodeURIComponent(uploadId)}`,
+        { method: 'DELETE', headers: authHeaders({ Prefer: 'return=minimal' }) },
+      );
+      if (!response.ok) throw await readError(response);
+      return { deleted: 1 };
+    },
+
+    /** Loescht einzelne Dateieintraege. */
+    async deleteMemoryFileRows(ids) {
+      const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+      if (list.length === 0) return { deleted: 0 };
+      const filter = `id=in.(${list.map((id) => encodeURIComponent(id)).join(',')})`;
+      const response = await doFetch(`${baseUrl}/rest/v1/${memoriesFilesTable}?${filter}`, {
+        method: 'DELETE',
+        headers: authHeaders({ Prefer: 'return=minimal' }),
+      });
       if (!response.ok) throw await readError(response);
       return { deleted: list.length };
     },

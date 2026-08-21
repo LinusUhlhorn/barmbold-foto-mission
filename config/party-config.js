@@ -108,6 +108,11 @@ export const PARTY_CONFIG = {
       'Bitte frag im Zweifel kurz nach, bevor du ein Foto mit anderen Gästen hochlädst.',
     peopleNotice:
       'Bitte stelle sicher, dass die abgebildeten Personen mit dem Foto einverstanden sind.',
+    // Gilt fuer den privaten Bereich "Fuer Britta & Lutz".
+    memoriesNotice:
+      'Die privaten Erinnerungen werden unverändert gespeichert (also einschließlich der ' +
+      'Aufnahmedaten der Kamera) und ausschließlich Britta und Lutz übergeben. ' +
+      'Sie erscheinen niemals in der öffentlichen Galerie.',
   },
 
   // -----------------------------------------------------
@@ -142,6 +147,70 @@ export const PARTY_CONFIG = {
   },
 
   // -----------------------------------------------------
+  // 4b. PRIVATE ERINNERUNGEN ("Fuer Britta & Lutz")
+  // -----------------------------------------------------
+  // Ein zweiter, voellig getrennter Weg: Gaeste laden hier Fotos und kurze
+  // Videos hoch, die NIEMALS oeffentlich erscheinen. Sie landen in einem
+  // eigenen privaten Speicher und sind nur im Adminbereich sichtbar.
+  //
+  // Wichtig: Diese Dateien werden bewusst NICHT verkleinert. Britta und Lutz
+  // sollen die Aufnahmen in Originalqualitaet bekommen.
+  memories: {
+    // Auf false setzen, um den ganzen Bereich auszublenden.
+    enabled: true,
+    // Beschriftung des Menuepunktes.
+    tabLabel: 'Für Britta & Lutz',
+
+    limits: {
+      // Pro Upload-Vorgang. Diese Zahlen stehen auch in der Datenbank
+      // (siehe supabase/private-memories.sql) - beides muss zusammenpassen.
+      maxPhotos: 20,
+      maxVideos: 5,
+      maxPhotoBytes: 15 * 1024 * 1024, // 15 MB
+      maxVideoBytes: 45 * 1024 * 1024, // 45 MB
+      // Ab dieser Groesse wird der unterbrechbare Upload (TUS) versucht.
+      resumableFromBytes: 6 * 1024 * 1024, // 6 MB
+      // Empfehlung fuer die Videolaenge (nur ein Hinweis, keine harte Grenze:
+      // die Laenge laesst sich im Browser nicht zuverlaessig pruefen).
+      videoSecondsHint: 30,
+      // Laenge der persoenlichen Nachricht.
+      maxMessageLength: 1000,
+      photoMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
+      videoMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
+      // Manche Handys liefern gar keinen oder einen falschen MIME-Typ mit.
+      // Dann entscheidet die Dateiendung.
+      photoExtensions: ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'],
+      videoExtensions: ['mp4', 'mov', 'm4v', 'webm'],
+    },
+
+    texts: {
+      title: 'Eine Erinnerung an diesen Abend',
+      intro:
+        'Habt ihr einen schönen Moment festgehalten? Dann ladet hier gerne eure Fotos oder ' +
+        'kurze Videos für Britta und Lutz hoch. Die Aufnahmen werden nicht öffentlich angezeigt, ' +
+        'sondern den beiden nach der Feier als persönliches Erinnerungsalbum übergeben.',
+      privateBadge: 'Privater Upload – nur Britta und Lutz erhalten diese Aufnahmen.',
+      nameLabel: 'Wie heißt du?',
+      namePlaceholder: 'Dein Name',
+      nameHint: 'Dein Name wird gebraucht, damit die Aufnahmen später zugeordnet werden können.',
+      messageLabel: 'Persönliche Nachricht an Britta und Lutz (optional)',
+      messagePlaceholder: 'Ein paar Zeilen, wenn du magst …',
+      photoBoxTitle: 'Fotos hinzufügen',
+      videoBoxTitle: 'Videos hinzufügen',
+      videoHint: 'Bitte möglichst kurze Videos – etwa bis 30 Sekunden.',
+      uploadButton: 'Erinnerung hochladen',
+      successTitle: 'Vielen Dank!',
+      successText:
+        'Deine Erinnerungen wurden gespeichert und werden Britta und Lutz nach der Feier übergeben.',
+      moreButton: 'Weitere Erinnerungen hochladen',
+      // Hinweis am Ende der Foto-Mission.
+      missionHint:
+        'Habt ihr noch weitere schöne Momente aufgenommen? Ladet sie gerne privat für Britta und Lutz hoch.',
+      missionHintButton: 'Erinnerungen hochladen',
+    },
+  },
+
+  // -----------------------------------------------------
   // 5. BILDVERARBEITUNG (Kompression im Browser)
   // -----------------------------------------------------
   image: {
@@ -168,6 +237,13 @@ export const PARTY_CONFIG = {
     table: 'photo_submissions',
     // Wie lange sind die Bild-Links im privaten Album gueltig (in Sekunden)?
     signedUrlTtlSeconds: 600, // 10 Minuten
+
+    // --- Privater Bereich "Fuer Britta & Lutz" ---------------------------
+    // Eigener, streng privater Speicher. Der Bucket der Foto-Mission bleibt
+    // davon voellig unberuehrt.
+    memoriesBucket: 'private-memories',
+    memoriesTable: 'private_memory_uploads',
+    memoriesFilesTable: 'private_memory_files',
   },
 
   // -----------------------------------------------------

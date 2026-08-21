@@ -13,7 +13,10 @@
   display: block;
 }
 
-.shell__main.is-gallery [data-screen] {
+/* Es ist immer genau ein Hauptbereich sichtbar. Die Bildschirme der
+   Foto-Mission verschwinden, sobald Galerie oder privater Bereich dran sind. */
+.shell__main[data-view='gallery'] [data-screen],
+.shell__main[data-view='memories'] [data-screen] {
   display: none !important;
 }
 
@@ -359,6 +362,237 @@
   .gallery-filters {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================================================
+   PRIVATER BEREICH: "FÜR BRITTA & LUTZ"
+   =========================================================================
+   Große Flächen, deutliche Zähler, klare Trennung von Fotos und Videos -
+   der Bereich soll auch für technisch ungeübte Gäste am Handy einfach sein.
+   ========================================================================= */
+
+.memories {
+  width: min(100%, 40rem);
+  margin-inline: auto;
+}
+
+/* Der Hinweis, dass hier nichts öffentlich wird. Muss auffallen. */
+.private-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+  border: 1px solid var(--c-border-gold);
+  border-radius: var(--radius);
+  background: rgba(200, 204, 208, 0.1);
+  color: var(--c-gold-soft);
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+  justify-content: center;
+}
+
+.memories-message {
+  resize: vertical;
+  min-height: 5rem;
+  font-family: inherit;
+}
+
+/* ---------- Auswahlflächen ---------- */
+
+.dropbox {
+  padding: var(--sp-5) var(--sp-4);
+  margin-top: var(--sp-5);
+  border: 2px dashed var(--c-border);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.22);
+  text-align: center;
+}
+
+.dropbox.is-full {
+  border-style: solid;
+  border-color: rgba(255, 178, 107, 0.45);
+}
+
+.dropbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.dropbox__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--c-border-gold);
+  color: var(--c-gold);
+}
+
+.dropbox__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Der Zähler ist die wichtigste Information in diesem Kasten. */
+.dropbox__counter {
+  margin: var(--sp-2) 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-gold-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.dropbox .hint {
+  margin-bottom: var(--sp-3);
+}
+
+.dropbox .btn {
+  margin-top: var(--sp-2);
+}
+
+.dropbox__full {
+  margin-top: var(--sp-3);
+  text-align: left;
+}
+
+.memories-error {
+  margin-top: var(--sp-4);
+  flex-direction: row;
+}
+
+.memories-error p + p {
+  margin-top: var(--sp-2);
+}
+
+/* ---------- Ausgewählte Dateien ---------- */
+
+.memory-group {
+  margin-top: var(--sp-5);
+}
+
+.memory-group__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+.memory-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.memory-item__preview {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--c-gold);
+}
+
+.memory-item__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.memory-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-item__name {
+  font-size: 0.9rem;
+  font-weight: 650;
+  /* Lange Dateinamen dürfen die Seite nicht seitlich hinausschieben. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.memory-item__meta {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  color: var(--c-text-muted);
+}
+
+.memory-item__remove {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+
+.memories-summary {
+  margin-top: var(--sp-5);
+  margin-bottom: 0;
+}
+
+.memories-summary .summary__key {
+  flex-basis: 8rem;
+}
+
+/* ---------- Fortschritt und Erfolg ---------- */
+
+.memories-progress,
+.memories-success {
+  margin-top: var(--sp-5);
+  text-align: center;
+}
+
+.memories-progress .progress {
+  margin-top: var(--sp-5);
+}
+
+.memories-progress .hint {
+  margin-top: var(--sp-3);
+  overflow-wrap: anywhere;
+}
+
+.memories-success .summary__row {
+  align-items: center;
+}
+
+.memories-success .summary__icon {
+  flex: 0 0 auto;
+  color: var(--c-success);
+  margin-right: var(--sp-2);
+}
+
+/* ---------- Hinweis am Ende der Foto-Mission ---------- */
+
+.memories-hint {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--c-border);
+}
+
+.memories-hint .btn {
+  margin-top: var(--sp-2);
 }
 
 @keyframes screen-in {

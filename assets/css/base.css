@@ -386,6 +386,18 @@ textarea {
   background: rgba(0, 0, 0, 0.24);
 }
 
+/* Drei Bereiche: Mission, Galerie und "Für Britta & Lutz". */
+.app-tabs--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-tabs--three .app-tabs__button {
+  padding-inline: 4px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  hyphens: auto;
+}
+
 .app-tabs__button {
   min-height: 44px;
   border: 0;

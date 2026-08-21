@@ -604,3 +604,179 @@
     margin: 12mm;
   }
 }
+
+/* =========================================================================
+   PRIVATE ERINNERUNGEN ("Für Britta & Lutz")
+   =========================================================================
+   Jeder Upload-Vorgang ist ein eigener Ordner: Kopfzeile zum Aufklappen,
+   darin die Dateien mit Vorschau, Download und Löschen.
+   ========================================================================= */
+
+.memories-admin__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+
+.memories-admin__note {
+  margin-bottom: var(--sp-4);
+}
+
+.memories-admin__list {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.memory-upload {
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+
+/* Unvollständige Uploads müssen sofort auffallen. */
+.memory-upload--incomplete {
+  border-color: rgba(255, 178, 107, 0.5);
+}
+
+.memory-upload__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: var(--touch);
+  padding: var(--sp-4);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.memory-upload__head:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.memory-upload__headtext {
+  min-width: 0;
+}
+
+.memory-upload__name {
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.memory-upload__meta {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+}
+
+.memory-upload__body {
+  padding: 0 var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--c-border);
+}
+
+.memory-upload__message {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--c-border-gold);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(255, 255, 255, 0.05);
+  font-style: italic;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.memory-upload__folder {
+  margin-top: var(--sp-3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--c-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.memory-upload__grouptitle {
+  margin-top: var(--sp-5);
+  margin-bottom: var(--sp-3);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+
+.memory-upload__actions {
+  margin-top: var(--sp-5);
+}
+
+.memory-files {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--sp-3);
+}
+
+.memory-file {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.memory-file__preview {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+
+.memory-file__preview.is-clickable {
+  cursor: zoom-in;
+}
+
+.memory-file__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.memory-file__video {
+  width: 100%;
+  max-height: 100%;
+}
+
+.memory-file__body {
+  padding: var(--sp-3);
+}
+
+.memory-file__name {
+  font-size: 0.86rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.memory-file__meta {
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--c-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.memory-file__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+.memory-file__tools .btn {
+  flex: 1 1 auto;
+}
