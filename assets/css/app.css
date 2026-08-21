@@ -125,6 +125,107 @@
   text-align: center;
 }
 
+/* ---------- Kategorien als Knöpfe mit Anzahl ---------- */
+
+.gallery-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.gallery-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gallery-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gallery-pill.is-active {
+  color: #151719;
+  background: linear-gradient(112deg, #f5f1e9, var(--c-gold));
+  border-color: transparent;
+}
+
+/* Die Anzahl steht in einer eigenen kleinen Blase. */
+.gallery-pill__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-pill.is-active .gallery-pill__count {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Einzelne Aufgabe ---------- */
+
+.gallery-mission {
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.gallery-mission select {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: #16181a;
+  color: var(--c-text);
+  font-size: 16px;
+}
+
+/* ---------- Abschnitte je Kategorie ---------- */
+
+.gallery-group + .gallery-group {
+  margin-top: var(--sp-6);
+}
+
+.gallery-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.gallery-group__title {
+  font-family: var(--font-display, inherit);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.gallery-group__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 .gallery-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -152,11 +253,43 @@
 }
 
 .public-photo {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-lg);
   background: var(--c-surface);
   box-shadow: var(--shadow-soft);
+}
+
+/* ---------- Platz 1 bis 3 einer Kategorie ---------- */
+/* Der Platz ergibt sich allein aus den Herzen und ändert sich live mit. */
+
+.public-photo__rank {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #151719;
+  background: linear-gradient(112deg, #f5f1e9, var(--c-gold));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.public-photo--rank1 {
+  border-color: var(--c-border-gold);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+}
+
+.public-photo--rank2 .public-photo__rank {
+  background: linear-gradient(112deg, #eceff1, #b6bcc2);
+}
+
+.public-photo--rank3 .public-photo__rank {
+  background: linear-gradient(112deg, #e5cbb0, #b98f66);
 }
 
 .public-photo__image {

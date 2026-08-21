@@ -185,10 +185,6 @@ export const PARTY_CONFIG = {
 
     texts: {
       title: 'Eine Erinnerung an diesen Abend',
-      intro:
-        'Habt ihr einen schönen Moment festgehalten? Dann ladet hier gerne eure Fotos oder ' +
-        'kurze Videos für Britta und Lutz hoch. Die Aufnahmen werden nicht öffentlich angezeigt, ' +
-        'sondern den beiden nach der Feier als persönliches Erinnerungsalbum übergeben.',
       privateBadge: 'Privater Upload – nur Britta und Lutz erhalten diese Aufnahmen.',
       nameLabel: 'Wie heißt du?',
       namePlaceholder: 'Dein Name',

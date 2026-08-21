@@ -429,9 +429,6 @@ test('Fotos und Videos haben getrennte Auswahlbereiche', () => {
 test('Der geforderte Text steht wortgleich auf der Seite', () => {
   const texts = PARTY_CONFIG.memories.texts;
   assert.equal(texts.title, 'Eine Erinnerung an diesen Abend');
-  assert.match(texts.intro, /Habt ihr einen schönen Moment festgehalten\?/);
-  assert.match(texts.intro, /nicht öffentlich angezeigt/);
-  assert.match(texts.intro, /persönliches Erinnerungsalbum übergeben/);
   assert.equal(
     texts.privateBadge,
     'Privater Upload – nur Britta und Lutz erhalten diese Aufnahmen.',
@@ -453,8 +450,13 @@ test('Die privaten Aufnahmen erscheinen nirgends öffentlich', () => {
     !/listMemoryUploads|listMemoryFiles|createMemorySignedUrls/.test(app),
     'Die Startseite liest private Erinnerungen',
   );
-  const galerie = app.slice(app.indexOf('function renderPublicGallery'), app.indexOf('function buildPublicGalleryCategories'));
-  assert.ok(!/memor/i.test(galerie), 'In der Galerie tauchen private Erinnerungen auf');
+  const von = app.indexOf('function renderPhotoCard');
+  const bis = app.indexOf('function galleryIsStale');
+  assert.ok(von > 0 && bis > von, 'Der Galerie-Teil wurde nicht gefunden');
+  assert.ok(
+    !/memor/i.test(app.slice(von, bis)),
+    'In der Galerie tauchen private Erinnerungen auf',
+  );
 
   // Der Gäste-Teil lädt nur hoch und liest nichts zurück.
   const memories = read('assets/js/memories.js');
@@ -529,4 +531,54 @@ test('Das Exportskript hält den geheimen Schlüssel aus dem Projekt heraus', ()
   for (const datei of ['assets/js/memories.js', 'assets/js/album-memories.js', 'config/party-config.js']) {
     assert.ok(!/service_role/i.test(read(datei)), `${datei} erwähnt den Service-Role-Key`);
   }
+});
+
+// =========================================================================
+// Galerie: Kategorien, Reihenfolge nach Herzen, Platz 1 bis 3
+// =========================================================================
+
+test('Die Galerie hat Kategorie-Knöpfe und eine Auswahl für einzelne Aufgaben', () => {
+  const html = read('index.html');
+  assert.match(html, /data-gallery-pills/, 'Die Kategorie-Knöpfe fehlen');
+  assert.match(html, /data-public-gallery-mission/, 'Die Auswahl "Einzelne Aufgabe" fehlt');
+  assert.match(html, /Einzelne Aufgabe/, 'Die Beschriftung fehlt');
+  assert.match(html, /data-public-gallery-groups/, 'Der Bereich für die Abschnitte fehlt');
+  // Die alten Auswahlfelder sind ersetzt.
+  assert.ok(!html.includes('data-public-gallery-sort'), 'Das alte Sortierfeld ist noch da');
+  assert.ok(!html.includes('data-public-gallery-category'), 'Das alte Kategoriefeld ist noch da');
+});
+
+test('Die erklärenden Hinweistexte sind entfernt', () => {
+  const html = read('index.html');
+  assert.ok(
+    !html.includes('Tipp auf ein Foto, um es groß anzusehen'),
+    'Der Hinweis in der Galerie steht noch da',
+  );
+  assert.ok(
+    !html.includes('Ein Herz pro Kategorie'),
+    'Der Hinweis zur Herz-Regel steht noch da',
+  );
+  // Der Einleitungstext im privaten Bereich ist ebenfalls raus.
+  assert.ok(
+    !html.includes('data-text-memories="intro"'),
+    'Der Einleitungstext im privaten Bereich steht noch da',
+  );
+  assert.equal(PARTY_CONFIG.memories.texts.intro, undefined);
+  // Der wichtige Hinweisbalken bleibt aber.
+  assert.match(html, /data-text-memories="privateBadge"/);
+});
+
+test('Die Galerie ordnet nach Herzen und vergibt Platz 1 bis 3', () => {
+  const code = read('assets/js/app.js');
+  // Die Reihenfolge kommt aus den Herzen.
+  assert.match(code, /function byLikes/);
+  assert.match(code, /Number\(b\.likes_count \|\| 0\) - Number\(a\.likes_count \|\| 0\)/);
+  // Die Platzierung wird je Kategorie berechnet.
+  assert.match(code, /function galleryRanks/);
+  assert.match(code, /if \(platz <= 3\) ranks\.set/);
+  // Ohne Herz gibt es keinen Platz.
+  assert.match(code, /if \(herzen <= 0\) return;/);
+  // Nach einer Wertung wird sofort neu geordnet.
+  const toggle = code.slice(code.indexOf('async function toggleLike'), code.indexOf('function renderPhotoCard'));
+  assert.match(toggle, /renderPublicGallery\(\)/, 'Nach einem Herz wird nicht neu geordnet');
 });

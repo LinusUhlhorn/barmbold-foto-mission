@@ -78,6 +78,8 @@ const gallery = {
   loaded: false,
   loading: false,
   loadedAt: 0,
+  // Welche Kategorie ist gerade gewaehlt? Leer = alle.
+  category: '',
   // Vollbild-Betrachter: die gerade sichtbare Reihenfolge und die Stelle darin.
   viewRows: [],
   viewIndex: -1,
@@ -198,23 +200,112 @@ function setMainView(view) {
   window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
 }
 
+/**
+ * Reihenfolge in der Galerie: Das Foto mit den meisten Herzen steht oben.
+ * Bei Gleichstand entscheidet, wer zuerst da war.
+ */
+function byLikes(a, b) {
+  return (
+    Number(b.likes_count || 0) - Number(a.likes_count || 0) ||
+    new Date(a.created_at || 0) - new Date(b.created_at || 0)
+  );
+}
+
+function categoryOf(row) {
+  return row.mission_category || 'Erinnerung';
+}
+
+/**
+ * Die Platzierungen je Kategorie: Foto-ID -> 1, 2 oder 3.
+ *
+ * Gezaehlt wird ueber ALLE Fotos einer Kategorie, unabhaengig davon, was
+ * gerade gefiltert ist - der Platz bleibt also derselbe, egal wie man schaut.
+ * Fotos ohne Herz bekommen keinen Platz, und bei Gleichstand teilen sich
+ * mehrere Fotos denselben Platz.
+ */
+function galleryRanks() {
+  const proKategorie = new Map();
+  for (const row of gallery.rows) {
+    const kategorie = categoryOf(row);
+    if (!proKategorie.has(kategorie)) proKategorie.set(kategorie, []);
+    proKategorie.get(kategorie).push(row);
+  }
+
+  const ranks = new Map();
+  for (const rows of proKategorie.values()) {
+    const sortiert = [...rows].sort(byLikes);
+    let platz = 0;
+    let vorherigeHerzen = null;
+    sortiert.forEach((row, index) => {
+      const herzen = Number(row.likes_count || 0);
+      if (herzen <= 0) return; // Ohne Herz gibt es keinen Platz.
+      // Gleichstand: derselbe Platz. Sonst zaehlt die Position.
+      platz = herzen === vorherigeHerzen ? platz : index + 1;
+      vorherigeHerzen = herzen;
+      if (platz <= 3) ranks.set(row.id, platz);
+    });
+  }
+  return ranks;
+}
+
+/**
+ * Baut die Gruppen, die gerade angezeigt werden.
+ *
+ * Ohne Auswahl einer Aufgabe wird nach Kategorie gruppiert - passend dazu,
+ * dass es je Kategorie ein Herz und eine eigene Platzierung gibt. Ist eine
+ * einzelne Aufgabe gewaehlt, gibt es genau eine Gruppe dafuer.
+ *
+ * @returns {Array<{key: string, title: string, badge: string, rows: Array}>}
+ */
+function galleryGroups() {
+  const kategorie = gallery.category;
+  const mission = $('[data-public-gallery-mission]').value;
+
+  const rows = gallery.rows.filter(
+    (row) =>
+      (!kategorie || categoryOf(row) === kategorie) && (!mission || row.mission_id === mission),
+  );
+
+  if (mission) {
+    const titel = rows.length > 0 ? rows[0].mission_title : missionTitleById(mission);
+    return rows.length === 0
+      ? []
+      : [
+          {
+            key: mission,
+            title: titel || 'Aufgabe',
+            badge: categoryOf(rows[0]),
+            rows: [...rows].sort(byLikes),
+          },
+        ];
+  }
+
+  const gruppen = new Map();
+  for (const row of rows) {
+    const name = categoryOf(row);
+    if (!gruppen.has(name)) gruppen.set(name, []);
+    gruppen.get(name).push(row);
+  }
+
+  return [...gruppen.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+    .map(([name, eintraege]) => ({
+      key: name,
+      title: name,
+      badge: '',
+      rows: eintraege.sort(byLikes),
+    }));
+}
+
+/** Der Titel einer Aufgabe aus der Konfiguration. */
+function missionTitleById(id) {
+  const mission = config.missions.concat(config.bonusMissions).find((m) => m.id === id);
+  return mission ? renderMission(mission, templateValues).title : '';
+}
+
+/** Alle gerade sichtbaren Fotos, in genau der Reihenfolge der Anzeige. */
 function galleryRowsForView() {
-  const category = $('[data-public-gallery-category]').value;
-  const sort = $('[data-public-gallery-sort]').value;
-  // Bewusst auf einer Kopie sortieren: gallery.rows soll seine Reihenfolge
-  // behalten, sonst wandern die Karten beim naechsten Aufbau durcheinander.
-  const rows = gallery.rows.filter((row) => !category || row.mission_category === category);
-  if (sort === 'popular') {
-    return rows.sort(
-      (a, b) =>
-        Number(b.likes_count || 0) - Number(a.likes_count || 0) ||
-        new Date(b.created_at || 0) - new Date(a.created_at || 0),
-    );
-  }
-  if (sort === 'oldest') {
-    return rows.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-  }
-  return rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  return galleryGroups().flatMap((gruppe) => gruppe.rows);
 }
 
 /** Beschriftung des Herz-Knopfes, passend zum aktuellen Zustand. */
@@ -223,21 +314,6 @@ function likeLabel(row, liked) {
   return liked
     ? `Herz wieder wegnehmen (${category})`
     : `Diesem Foto das Herz für ${category} geben`;
-}
-
-/** Aktualisiert einen einzelnen Herz-Knopf, ohne die Galerie neu aufzubauen. */
-function refreshLikeButton(id) {
-  const card = gallery.cards.get(id);
-  if (card) {
-    const liked = gallery.votes.has(id);
-    card.button.classList.toggle('is-liked', liked);
-    card.button.setAttribute('aria-pressed', String(liked));
-    card.button.setAttribute('aria-label', likeLabel(card.row, liked));
-    card.countNode.textContent = String(Number(card.row.likes_count || 0));
-  }
-  // Das Foto kann gerade auch in voller Größe zu sehen sein.
-  const shown = photoViewRow();
-  if (shown && shown.id === id) refreshLightboxLike();
 }
 
 /**
@@ -265,19 +341,29 @@ async function toggleLike(row, button) {
       if (previous && result.movedFromLikesCount != null) {
         previous.likes_count = result.movedFromLikesCount;
       }
-      refreshLikeButton(result.movedFrom);
     }
 
     rememberVotes(gallery.votes);
-    refreshLikeButton(row.id);
     sound.tap();
     vibrate(8);
+
+    // Die Galerie ordnet sich sofort neu: Das Foto mit den meisten Herzen
+    // steht oben, und die Plaetze 1 bis 3 stimmen wieder.
+    renderPublicGallery();
+    refreshLightboxLike();
+    // Nach dem Neuaufbau zurueck auf denselben Knopf, damit die Bedienung
+    // per Tastatur nicht abreisst.
+    const karte = gallery.cards.get(row.id);
+    if (karte && karte.button && document.activeElement === document.body) {
+      karte.button.focus({ preventScroll: true });
+    }
+
+    const platz = galleryRanks().get(row.id);
     announce(
       live,
       result.liked
-        ? result.movedFrom
-          ? `Dein Herz für ${result.category} ist zu diesem Foto umgezogen.`
-          : 'Herz vergeben.'
+        ? `${result.movedFrom ? `Dein Herz für ${result.category} ist zu diesem Foto umgezogen.` : 'Herz vergeben.'}` +
+            (platz ? ` Dieses Foto steht jetzt auf Platz ${platz} in der Kategorie ${result.category}.` : '')
         : 'Herz wieder weggenommen.',
     );
   } catch (error) {
@@ -381,93 +467,197 @@ function stepPhotoView(delta) {
   renderPhotoView();
 }
 
-function renderPublicGallery() {
-  const grid = $('[data-public-gallery-grid]');
-  const empty = $('[data-public-gallery-empty]');
-  const rows = galleryRowsForView();
-  clear(grid);
-  gallery.cards.clear();
-  empty.hidden = rows.length !== 0;
+/**
+ * Eine einzelne Fotokachel.
+ * @param {object} row
+ * @param {number|undefined} rank  Platz 1-3 in seiner Kategorie
+ */
+function renderPhotoCard(row, rank) {
+  const card = el('article', { className: 'public-photo' });
+  if (rank) card.classList.add(`public-photo--rank${rank}`);
+  const url = gallery.urls.get(row.storage_path);
 
-  for (const row of rows) {
-    const card = el('article', { className: 'public-photo' });
-    const url = gallery.urls.get(row.storage_path);
-
-    let opener = null;
-    if (url) {
-      const image = el('img', {
-        className: 'public-photo__image',
-        attrs: {
-          src: url,
-          alt: '',
-          loading: 'lazy',
-        },
-      });
-      // Das Bild sitzt in einem Knopf: Tippen zeigt es in voller Groesse.
-      opener = el('button', {
-        className: 'public-photo__open',
-        attrs: {
-          type: 'button',
-          'aria-label': `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${
-            row.mission_title || ''
-          } groß ansehen`,
-        },
-      });
-      opener.appendChild(image);
-      opener.addEventListener('click', () => openPhotoView(row.id));
-
-      // Laedt das Bild nicht (abgelaufener Link, Funkloch), bleibt keine
-      // kaputte Grafik stehen, sondern ein ruhiger Platzhalter.
-      image.addEventListener('error', () => {
-        opener.replaceWith(
-          el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }),
-        );
-      });
-      card.appendChild(opener);
-    } else {
-      card.appendChild(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
-    }
-
-    const body = el('div', { className: 'public-photo__body' });
-    body.appendChild(el('p', { className: 'public-photo__name', text: row.guest_name || 'Ohne Namen' }));
-    body.appendChild(el('p', { className: 'public-photo__mission', text: row.mission_title || 'Foto-Mission' }));
-
-    const footer = el('div', { className: 'public-photo__footer' });
-    footer.appendChild(el('span', { className: 'public-photo__category', text: row.mission_category || 'Erinnerung' }));
-
-    const liked = gallery.votes.has(row.id);
-    const like = el('button', {
-      className: `btn btn--secondary public-photo__like${liked ? ' is-liked' : ''}`,
+  let opener = null;
+  if (url) {
+    const image = el('img', {
+      className: 'public-photo__image',
+      attrs: { src: url, alt: '', loading: 'lazy' },
+    });
+    // Das Bild sitzt in einem Knopf: Tippen zeigt es in voller Groesse.
+    opener = el('button', {
+      className: 'public-photo__open',
       attrs: {
         type: 'button',
-        'aria-pressed': String(liked),
-        'aria-label': likeLabel(row, liked),
+        'aria-label': `Foto von ${row.guest_name || 'einem Gast'} zur Aufgabe ${
+          row.mission_title || ''
+        } groß ansehen`,
       },
     });
-    like.appendChild(createIcon('heart', { size: 18 }));
-    const countNode = el('span', { text: String(Number(row.likes_count || 0)) });
-    like.appendChild(countNode);
-    like.disabled = !supabaseReady;
-    like.addEventListener('click', () => toggleLike(row, like));
+    opener.appendChild(image);
+    opener.addEventListener('click', () => openPhotoView(row.id));
 
-    gallery.cards.set(row.id, { row, button: like, countNode, opener });
-    footer.appendChild(like);
-    body.appendChild(footer);
-    card.appendChild(body);
-    grid.appendChild(card);
+    // Laedt das Bild nicht (abgelaufener Link, Funkloch), bleibt keine
+    // kaputte Grafik stehen, sondern ein ruhiger Platzhalter.
+    image.addEventListener('error', () => {
+      opener.replaceWith(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+    });
+    card.appendChild(opener);
+  } else {
+    card.appendChild(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+  }
+
+  // Platz 1 bis 3 einer Kategorie werden sichtbar ausgezeichnet.
+  if (rank) {
+    card.appendChild(el('span', { className: 'public-photo__rank', text: `Platz ${rank}` }));
+  }
+
+  const body = el('div', { className: 'public-photo__body' });
+  body.appendChild(el('p', { className: 'public-photo__name', text: row.guest_name || 'Ohne Namen' }));
+  body.appendChild(
+    el('p', { className: 'public-photo__mission', text: row.mission_title || 'Foto-Mission' }),
+  );
+
+  const footer = el('div', { className: 'public-photo__footer' });
+  footer.appendChild(el('span', { className: 'public-photo__category', text: categoryOf(row) }));
+
+  const liked = gallery.votes.has(row.id);
+  const like = el('button', {
+    className: `btn btn--secondary public-photo__like${liked ? ' is-liked' : ''}`,
+    attrs: {
+      type: 'button',
+      'aria-pressed': String(liked),
+      'aria-label': likeLabel(row, liked),
+    },
+  });
+  like.appendChild(createIcon('heart', { size: 18 }));
+  const countNode = el('span', { text: String(Number(row.likes_count || 0)) });
+  like.appendChild(countNode);
+  like.disabled = !supabaseReady;
+  like.addEventListener('click', () => toggleLike(row, like));
+
+  gallery.cards.set(row.id, { row, button: like, countNode, opener });
+  footer.appendChild(like);
+  body.appendChild(footer);
+  card.appendChild(body);
+  return card;
+}
+
+/** "1 Foto" statt "1 Fotos". */
+function fotoAnzahl(n) {
+  return n === 1 ? '1 Foto' : `${n} Fotos`;
+}
+
+/**
+ * Die Kategorie-Knoepfe mit Anzahl ("Alle 79", "Momente 4").
+ * Sie ersetzen das alte Auswahlfeld und zeigen auf einen Blick,
+ * wo ueberhaupt etwas zu sehen ist.
+ */
+function renderGalleryPills() {
+  const host = $('[data-gallery-pills]');
+  clear(host);
+
+  const proKategorie = new Map();
+  for (const row of gallery.rows) {
+    const name = categoryOf(row);
+    proKategorie.set(name, (proKategorie.get(name) || 0) + 1);
+  }
+
+  const eintraege = [
+    { value: '', label: 'Alle', count: gallery.rows.length },
+    ...[...proKategorie.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+      .map(([name, count]) => ({ value: name, label: name, count })),
+  ];
+
+  for (const eintrag of eintraege) {
+    const aktiv = gallery.category === eintrag.value;
+    const pill = el('button', {
+      className: `gallery-pill${aktiv ? ' is-active' : ''}`,
+      attrs: { type: 'button', 'aria-pressed': String(aktiv) },
+      text: eintrag.label,
+    });
+    pill.appendChild(el('span', { className: 'gallery-pill__count', text: String(eintrag.count) }));
+    pill.addEventListener('click', () => {
+      gallery.category = eintrag.value;
+      // Eine Aufgabe aus einer anderen Kategorie passt dann nicht mehr.
+      const missionSelect = $('[data-public-gallery-mission]');
+      if (eintrag.value) {
+        const passend = gallery.rows.some(
+          (row) => row.mission_id === missionSelect.value && categoryOf(row) === eintrag.value,
+        );
+        if (!passend) missionSelect.value = '';
+      }
+      sound.tap();
+      renderPublicGallery();
+    });
+    host.appendChild(pill);
   }
 }
 
-function buildPublicGalleryCategories() {
-  const select = $('[data-public-gallery-category]');
-  const current = select.value;
-  const categories = new Set(config.missions.concat(config.bonusMissions).map((m) => m.category));
-  clear(select);
-  select.appendChild(el('option', { attrs: { value: '' }, text: 'Alle Kategorien' }));
-  for (const category of [...categories].filter(Boolean).sort((a, b) => a.localeCompare(b, 'de'))) {
-    select.appendChild(el('option', { attrs: { value: category }, text: category }));
+/** Die Auswahl "Einzelne Aufgabe" - nur Aufgaben, zu denen es Fotos gibt. */
+function renderGalleryMissions() {
+  const select = $('[data-public-gallery-mission]');
+  const bisher = select.value;
+
+  const aufgaben = new Map();
+  for (const row of gallery.rows) {
+    if (!row.mission_id) continue;
+    if (gallery.category && categoryOf(row) !== gallery.category) continue;
+    if (!aufgaben.has(row.mission_id)) {
+      aufgaben.set(row.mission_id, { title: row.mission_title || 'Aufgabe', count: 0 });
+    }
+    aufgaben.get(row.mission_id).count += 1;
   }
-  select.value = current;
+
+  clear(select);
+  select.appendChild(el('option', { attrs: { value: '' }, text: 'Alle Aufgaben' }));
+  for (const [id, eintrag] of [...aufgaben.entries()].sort((a, b) =>
+    a[1].title.localeCompare(b[1].title, 'de'),
+  )) {
+    select.appendChild(
+      el('option', {
+        attrs: { value: id },
+        text: `${eintrag.title} (${eintrag.count})`,
+      }),
+    );
+  }
+  // Die vorherige Auswahl beibehalten, falls es sie noch gibt.
+  select.value = aufgaben.has(bisher) ? bisher : '';
+}
+
+function renderPublicGallery() {
+  const host = $('[data-public-gallery-groups]');
+  const empty = $('[data-public-gallery-empty]');
+  clear(host);
+  gallery.cards.clear();
+
+  renderGalleryPills();
+  renderGalleryMissions();
+
+  const gruppen = galleryGroups();
+  const ranks = galleryRanks();
+  empty.hidden = gruppen.length !== 0;
+
+  for (const gruppe of gruppen) {
+    const abschnitt = el('section', { className: 'gallery-group' });
+
+    const kopf = el('div', { className: 'gallery-group__head' });
+    kopf.appendChild(el('h2', { className: 'gallery-group__title', text: gruppe.title }));
+    const meta = el('div', { className: 'gallery-group__meta' });
+    if (gruppe.badge) {
+      meta.appendChild(el('span', { className: 'tag tag--gold', text: gruppe.badge }));
+    }
+    meta.appendChild(el('span', { className: 'hint', text: fotoAnzahl(gruppe.rows.length) }));
+    kopf.appendChild(meta);
+    abschnitt.appendChild(kopf);
+
+    const grid = el('div', { className: 'public-gallery__grid' });
+    for (const row of gruppe.rows) {
+      grid.appendChild(renderPhotoCard(row, ranks.get(row.id)));
+    }
+    abschnitt.appendChild(grid);
+    host.appendChild(abschnitt);
+  }
 }
 
 /**
@@ -1315,8 +1505,7 @@ function bindEvents() {
   for (const button of document.querySelectorAll('[data-view-tab]')) {
     button.addEventListener('click', () => setMainView(button.dataset.viewTab));
   }
-  $('[data-public-gallery-category]').addEventListener('change', renderPublicGallery);
-  $('[data-public-gallery-sort]').addEventListener('change', renderPublicGallery);
+  $('[data-public-gallery-mission]').addEventListener('change', renderPublicGallery);
 
   // ---- Foto in voller Groesse ----
   const lightbox = $('[data-lightbox]');
@@ -1525,7 +1714,6 @@ async function init() {
   refreshSoundButton();
   // Gemerkte Herzen als erste Anzeige; die Datenbank korrigiert sie beim Laden.
   gallery.votes = storedVotes();
-  buildPublicGalleryCategories();
   setupMemories();
   setupTestMode();
   bindEvents();
