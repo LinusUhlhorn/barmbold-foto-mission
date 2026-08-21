@@ -185,6 +185,10 @@ test('Die öffentliche Galerie liest nur echte Fotos und deren Herz-Anzahl', asy
   assert.deepEqual(await client.listPublicSubmissions(), rows);
   assert.match(fetchImpl.calls[0].url, /is_test=eq\.false/);
   assert.match(fetchImpl.calls[0].url, /likes_count/);
+  // Ohne mission_id bliebe die Auswahl "Einzelne Aufgabe" in der Galerie leer.
+  assert.match(fetchImpl.calls[0].url, /mission_id/);
+  assert.match(fetchImpl.calls[0].url, /mission_title/);
+  assert.match(fetchImpl.calls[0].url, /mission_category/);
 });
 
 test('Eine Herz-Wertung läuft über die abgesicherte RPC-Funktion', async () => {

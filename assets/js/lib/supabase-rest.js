@@ -251,6 +251,9 @@ export function createSupabaseClient(config, deps = {}) {
       const fields = [
         'id',
         'guest_name',
+        // Die Kennung der Aufgabe wird fuer die Auswahl "Einzelne Aufgabe"
+        // gebraucht. Ohne sie bleibt das Feld in der Galerie leer.
+        'mission_id',
         'mission_title',
         'mission_category',
         'storage_path',
