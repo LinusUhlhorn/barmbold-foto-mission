@@ -50,7 +50,8 @@ for (const page of htmlPages) {
   const references = [...html.matchAll(/(?:href|src)="([^"#][^"]*)"/g)].map((m) => m[1]);
   for (const reference of references) {
     if (/^(https?:|data:|mailto:|#|\.\/$)/.test(reference)) continue;
-    const target = path.resolve(baseDir, reference);
+    // Der Versionsstempel ("?v=...") gehoert nicht zum Dateinamen.
+    const target = path.resolve(baseDir, reference.split('?')[0]);
     if (!fs.existsSync(target)) fail(`${page} verweist auf eine fehlende Datei: ${reference}`);
   }
 }

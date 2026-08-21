@@ -44,6 +44,9 @@ export const FTP_EXCLUDES = [
  */
 export const REQUIRED_FILES = [
   'index.html',
+  // Sagt dem Webserver, dass Seiten, Stile und Programmcode vor dem
+  // Verwenden kurz gegengeprueft werden muessen (siehe .htaccess).
+  '.htaccess',
   'qr-print.html',
   'album/index.html',
   'robots.txt',

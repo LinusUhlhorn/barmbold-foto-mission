@@ -1,0 +1,66 @@
+# =============================================================================
+#  EINSTELLUNGEN FÜR DEN WEBSERVER
+# =============================================================================
+#
+#  Diese Datei wird mit auf den Webserver hochgeladen und von Apache gelesen.
+#
+#  WARUM DAS WICHTIG IST
+#  ---------------------
+#  Nach einem Update passiert sonst Folgendes: Der Browser holt sich die neue
+#  index.html, benutzt aber das alte, zwischengespeicherte CSS und JavaScript.
+#  Dann passt beides nicht mehr zusammen - das Menü verrutscht und Knöpfe
+#  reagieren nicht mehr. Genau das lässt sich hier abstellen.
+#
+#  "no-cache" heißt NICHT "gar nicht speichern". Der Browser darf die Datei
+#  behalten, muss aber vor jeder Verwendung kurz nachfragen, ob sie noch
+#  aktuell ist. Hat sich nichts geändert, antwortet der Server mit einem
+#  winzigen "304 - unverändert". Das kostet fast nichts und stellt sicher,
+#  dass alle Gäste zusammenpassende Dateien bekommen.
+#
+#  Bilder und Schriften dürfen dagegen lange zwischengespeichert bleiben:
+#  Ihre Namen ändern sich, wenn sich ihr Inhalt ändert.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# 1. Seiten, Stile und Programmcode immer kurz gegenprüfen
+# -----------------------------------------------------------------------------
+# Der Block läuft nur, wenn das Apache-Modul "headers" vorhanden ist.
+# Fehlt es, wird der Abschnitt einfach übersprungen (kein Fehler).
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|css|js|json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Bilder dürfen einen Tag lang bleiben.
+  <FilesMatch "\.(svg|png|jpg|jpeg|webp|ico)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+
+  # Kleine Sicherheitszugaben
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "no-referrer"
+</IfModule>
+
+
+# -----------------------------------------------------------------------------
+# 2. Zeichensatz
+# -----------------------------------------------------------------------------
+# Ohne das zeigen manche Server Umlaute falsch an.
+<IfModule mod_mime.c>
+  AddDefaultCharset UTF-8
+  AddCharset UTF-8 .html .css .js .json
+</IfModule>
+
+
+# -----------------------------------------------------------------------------
+# 3. Nichts davon gehört in eine Suchmaschine
+# -----------------------------------------------------------------------------
+# Die Seite ist privat. Zusätzlich zu den noindex-Angaben in den Seiten selbst
+# sagt der Server es hier noch einmal - das wirkt auch dann, wenn eine Seite
+# einmal ohne die Angabe im Kopfbereich ausgeliefert wird.
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set X-Robots-Tag "noindex, nofollow"
+  </FilesMatch>
+</IfModule>

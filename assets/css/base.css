@@ -375,9 +375,16 @@ textarea {
   min-height: 44px;
 }
 
+/*
+  Die Bereichsauswahl.
+
+  Bewusst mit flex und "flex: 1 1 0" statt mit festen Spalten: So teilen sich
+  die Knoepfe die Breite IMMER in einer Zeile auf - egal wie viele es sind und
+  wie lang ihre Beschriftung ist. Ein zu langer Text bricht innerhalb seines
+  Knopfes um und faellt nie aus der Leiste heraus.
+*/
 .app-tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 4px;
   padding: 4px;
   margin-bottom: var(--sp-5);
@@ -386,26 +393,25 @@ textarea {
   background: rgba(0, 0, 0, 0.24);
 }
 
-/* Drei Bereiche: Mission, Galerie und "Für Britta & Lutz". */
-.app-tabs--three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.app-tabs--three .app-tabs__button {
-  padding-inline: 4px;
-  font-size: 0.78rem;
-  line-height: 1.2;
-  hyphens: auto;
-}
-
 .app-tabs__button {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--c-text-muted);
+  font-size: clamp(0.72rem, 3.2vw, 0.9rem);
   font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .app-tabs__button.is-active {

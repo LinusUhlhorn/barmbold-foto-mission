@@ -158,8 +158,10 @@ export const PARTY_CONFIG = {
   memories: {
     // Auf false setzen, um den ganzen Bereich auszublenden.
     enabled: true,
-    // Beschriftung des Menuepunktes.
-    tabLabel: 'Für Britta & Lutz',
+    // Beschriftung des Menuepunktes. Bewusst kurz, damit die drei Bereiche
+    // oben auch auf schmalen Handys einzeilig nebeneinander passen.
+    // Der volle Name steht als Ueberschrift auf der Seite selbst.
+    tabLabel: 'Erinnerungen',
 
     limits: {
       // Pro Upload-Vorgang. Diese Zahlen stehen auch in der Datenbank

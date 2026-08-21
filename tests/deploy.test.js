@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FTP_EXCLUDES, REQUIRED_FILES } from '../tools/deploy-manifest.js';
+import { STAMPED_PAGES, assetStamp } from '../tools/stamp-assets.js';
 import { PARTY_CONFIG } from '../config/party-config.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -352,4 +353,60 @@ test('Die gefährlichen Aufräum-Befehle sind auskommentiert', () => {
   }
   // Die gefährlichen Befehle müssen aber als Anleitung vorhanden sein.
   assert.match(sql, /-- delete from public\.photo_submissions where is_test;/);
+});
+
+// =========================================================================
+// Versionsstempel und Webserver-Einstellungen
+// =========================================================================
+
+test('Alle CSS- und JS-Verweise tragen einen aktuellen Versionsstempel', () => {
+  // Ohne Stempel holt sich der Browser nach einem Update zwar die neue
+  // HTML-Seite, benutzt aber das alte CSS und JavaScript aus seinem
+  // Zwischenspeicher. Dann passt beides nicht zusammen.
+  for (const page of STAMPED_PAGES) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const verweise = [...html.matchAll(/(?:href|src)="([^"]+\.(?:css|js))(\?[^"]*)?"/g)];
+    assert.ok(verweise.length > 0, `${page} verweist auf keine CSS- oder JS-Datei`);
+
+    for (const [, pfad, query] of verweise) {
+      if (/^(https?:|data:)/.test(pfad)) continue;
+      assert.ok(query, `${page}: "${pfad}" hat keinen Versionsstempel (npm run stamp)`);
+      const erwartet = assetStamp(path.resolve(path.dirname(path.join(ROOT, page)), pfad));
+      assert.equal(
+        query,
+        `?v=${erwartet}`,
+        `${page}: Der Stempel von "${pfad}" ist veraltet. Bitte "npm run stamp" ausführen.`,
+      );
+    }
+  }
+});
+
+test('Der Webserver bekommt die Anweisung, Seiten nicht zu horten', () => {
+  const htaccess = fs.readFileSync(path.join(ROOT, '.htaccess'), 'utf8');
+  // Der Kern: HTML, CSS und JS müssen vor dem Verwenden gegengeprüft werden.
+  assert.match(htaccess, /<FilesMatch "\\\.\(html\|css\|js\|json\)\$">/);
+  assert.match(htaccess, /Cache-Control "no-cache, must-revalidate"/);
+  // Alles steht in IfModule-Blöcken: Fehlt das Modul, gibt es keinen Fehler
+  // (sonst würde die ganze Seite mit "500" antworten).
+  const zeilen = htaccess.split('\n').map((z) => z.trim());
+  let tiefe = 0;
+  for (const zeile of zeilen) {
+    if (/^<IfModule/.test(zeile)) tiefe += 1;
+    else if (/^<\/IfModule>/.test(zeile)) tiefe -= 1;
+    else if (/^(Header|AddDefaultCharset|AddCharset)\b/.test(zeile)) {
+      assert.ok(tiefe > 0, `Diese Anweisung steht ungeschützt: ${zeile}`);
+    }
+  }
+  assert.equal(tiefe, 0, 'Ein IfModule-Block ist nicht geschlossen');
+});
+
+test('Die .htaccess wird auch wirklich hochgeladen', () => {
+  // Sie darf nicht versehentlich von einem Ausschlussmuster erfasst werden.
+  for (const muster of FTP_EXCLUDES) {
+    assert.ok(
+      !/^\*\*\/\.h/.test(muster) && muster !== '**/.*',
+      `Das Muster "${muster}" würde die .htaccess ausschließen`,
+    );
+  }
+  assert.ok(REQUIRED_FILES.includes('.htaccess'), '.htaccess fehlt in den Pflichtdateien');
 });
