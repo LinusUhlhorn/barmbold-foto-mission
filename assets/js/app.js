@@ -579,14 +579,9 @@ function renderGalleryPills() {
     pill.appendChild(el('span', { className: 'gallery-pill__count', text: String(eintrag.count) }));
     pill.addEventListener('click', () => {
       gallery.category = eintrag.value;
-      // Eine Aufgabe aus einer anderen Kategorie passt dann nicht mehr.
-      const missionSelect = $('[data-public-gallery-mission]');
-      if (eintrag.value) {
-        const passend = gallery.rows.some(
-          (row) => row.mission_id === missionSelect.value && categoryOf(row) === eintrag.value,
-        );
-        if (!passend) missionSelect.value = '';
-      }
+      // Eine neue Kategorie heisst: erst einmal alle Aufgaben darin zeigen.
+      // Bliebe die alte Aufgabe stehen, waeren Zaehler und Anzeige uneinig.
+      $('[data-public-gallery-mission]').value = '';
       sound.tap();
       renderPublicGallery();
     });
@@ -1145,7 +1140,7 @@ async function startUpload() {
 
   if (!consent.checked) {
     consentError.textContent =
-      'Bitte bestätige kurz, dass dein Foto ins private Album darf.';
+      'Bitte bestätige kurz, dass dein Foto ins Album und in die Galerie darf.';
     consent.focus();
     sound.error();
     announce(live, consentError.textContent);

@@ -150,6 +150,30 @@ test('Kleine Dateien gehen den einfachen Weg in den privaten Bucket', async () =
   assert.ok(!aufrufe[0].url.includes('party-photos'));
 });
 
+test('Liegt eine kleine Datei schon da, gilt der Upload als erledigt', async () => {
+  // 409 heißt: unter diesem Pfad liegt bereits genau diese Datei. Bei einem
+  // zweiten Versuch darf das den Gast nicht blockieren.
+  const xhrFactory = () => ({
+    upload: {},
+    open() {},
+    setRequestHeader() {},
+    send() {
+      this.status = 409;
+      this.responseText = '{"message":"The resource already exists"}';
+      this.onload();
+    },
+  });
+  const client = createSupabaseClient(CONFIG, { fetchImpl: async () => response(200, {}), xhrFactory });
+
+  const ergebnis = await client.uploadMemoryFile({
+    path: `${ORDNER}/fotos/01_foto.jpg`,
+    file: fakeFile(1024, 'image/jpeg'),
+    resumableFromBytes: 6 * 1024 * 1024,
+  });
+
+  assert.equal(ergebnis.path, `${ORDNER}/fotos/01_foto.jpg`);
+});
+
 test('Große Dateien gehen den unterbrechbaren Weg (TUS)', async () => {
   const groesse = 14 * 1024 * 1024; // 14 MB -> 3 Stücke à 6 MB
   const fortschritt = [];

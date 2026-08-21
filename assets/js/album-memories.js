@@ -92,6 +92,27 @@ export function initAlbumMemories({ config, supabase, live, showNotice, askDelet
     return state.files.filter((file) => file.upload_id === uploadId);
   }
 
+  /**
+   * Zaehlt anhand der wirklich vorhandenen Dateien. Die Zahlen im Vorgang
+   * werden erst beim Abschluss gesetzt - bei einem abgebrochenen Upload
+   * staenden dort sonst Nullen, obwohl Dateien angekommen sind.
+   */
+  function bestand(upload) {
+    const dateien = filesOf(upload.id);
+    if (dateien.length === 0) {
+      return {
+        photos: Number(upload.photo_count) || 0,
+        videos: Number(upload.video_count) || 0,
+        bytes: Number(upload.total_size) || 0,
+      };
+    }
+    return {
+      photos: dateien.filter((file) => file.media_type === 'photo').length,
+      videos: dateien.filter((file) => file.media_type === 'video').length,
+      bytes: dateien.reduce((summe, file) => summe + (Number(file.file_size) || 0), 0),
+    };
+  }
+
   // -----------------------------------------------------------------------
   // Anzeige
   // -----------------------------------------------------------------------
@@ -100,7 +121,7 @@ export function initAlbumMemories({ config, supabase, live, showNotice, askDelet
     clear(listNode);
 
     const gesamtDateien = state.files.length;
-    const gesamtBytes = state.uploads.reduce((summe, upload) => summe + Number(upload.total_size || 0), 0);
+    const gesamtBytes = state.uploads.reduce((summe, upload) => summe + bestand(upload).bytes, 0);
     const unvollstaendig = state.uploads.filter((upload) => upload.status !== 'complete').length;
 
     $('[data-memories-admin-meta]').textContent =
@@ -146,10 +167,11 @@ export function initAlbumMemories({ config, supabase, live, showNotice, askDelet
         text: `${upload.guest_name || 'Ohne Namen'} – ${tag}.${monat}.${jahr} um ${uhrzeit} Uhr`,
       }),
     );
+    const zaehlung = bestand(upload);
     const zahlen = [
-      anzahl(upload.photo_count, 'Foto', 'Fotos'),
-      anzahl(upload.video_count, 'Video', 'Videos'),
-      formatBytes(Number(upload.total_size) || 0),
+      anzahl(zaehlung.photos, 'Foto', 'Fotos'),
+      anzahl(zaehlung.videos, 'Video', 'Videos'),
+      formatBytes(zaehlung.bytes),
       `Status: ${statusText(upload.status)}`,
     ];
     headText.appendChild(el('p', { className: 'memory-upload__meta', text: zahlen.join(' · ') }));
@@ -272,9 +294,19 @@ function statusText(status) {
           }),
         );
       });
-      preview.appendChild(image);
+      // Das Bild sitzt in einem Knopf: So laesst es sich auch mit der
+      // Tastatur gross ansehen.
+      const opener = el('button', {
+        className: 'memory-file__open',
+        attrs: {
+          type: 'button',
+          'aria-label': `„${file.original_filename || file.stored_filename}“ groß ansehen`,
+        },
+        on: { click: () => openViewer(upload, file) },
+      });
+      opener.appendChild(image);
+      preview.appendChild(opener);
       preview.classList.add('is-clickable');
-      preview.addEventListener('click', () => openViewer(upload, file));
     } else {
       const video = el('video', {
         className: 'memory-file__video',

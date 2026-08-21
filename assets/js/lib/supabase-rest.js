@@ -609,14 +609,21 @@ export function createSupabaseClient(config, deps = {}) {
           console.warn('Unterbrechbarer Upload nicht möglich, nutze den einfachen Weg.', error);
         }
       }
-      return this.uploadPhoto({
-        path,
-        blob: file,
-        onProgress,
-        signal,
-        timeoutMs,
-        bucketName: memoriesBucket,
-      });
+      try {
+        return await this.uploadPhoto({
+          path,
+          blob: file,
+          onProgress,
+          signal,
+          timeoutMs,
+          bucketName: memoriesBucket,
+        });
+      } catch (error) {
+        // Liegt die Datei schon unter genau diesem Pfad, ist der Upload
+        // in Wahrheit erledigt. Das darf kein Fehler sein.
+        if (error && error.status === 409) return { path, resumed: true };
+        throw error;
+      }
     },
 
     /**

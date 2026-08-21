@@ -60,6 +60,9 @@ export function initMemories(context) {
     uploadId: null,
     folder: null,
     done: new Map(), // Schluessel der Datei -> Speicherpfad
+    // Laufende Nummer je Art. Sie zaehlt ueber alle Versuche hinweg weiter,
+    // damit ein zweiter Versuch niemals denselben Speicherpfad trifft.
+    nextIndex: { photo: 0, video: 0 },
   };
 
   const form = $('[data-memories-form]');
@@ -174,7 +177,7 @@ export function initMemories(context) {
   }
 
   function removeFile(entry) {
-    if (state.uploading) return;
+    if (state.uploading || entry.stored) return;
     if (entry.previewUrl) URL.revokeObjectURL(entry.previewUrl);
     state.files = state.files.filter((other) => other !== entry);
     // Der Upload-Stand gilt nicht mehr, sobald sich die Auswahl aendert.
@@ -243,10 +246,23 @@ export function initMemories(context) {
       body.appendChild(
         el('p', {
           className: 'memory-item__meta',
-          text: `${formatBytes(entry.file.size)} · ${typeLabel(entry)}`,
+          text: entry.stored
+            ? `${formatBytes(entry.file.size)} · ${typeLabel(entry)} · schon gespeichert`
+            : `${formatBytes(entry.file.size)} · ${typeLabel(entry)}`,
         }),
       );
       item.appendChild(body);
+
+      // Was bereits sicher gespeichert ist, laesst sich nicht mehr entfernen.
+      if (entry.stored) {
+        item.classList.add('memory-item--stored');
+        const haken = el('span', { className: 'memory-item__stored', attrs: { title: 'Gespeichert' } });
+        haken.appendChild(createIcon('check', { size: 18 }));
+        item.appendChild(haken);
+        item.dataset.position = String(index + 1);
+        list.appendChild(item);
+        return;
+      }
 
       const remove = el('button', {
         className: 'btn btn--icon memory-item__remove',
@@ -419,13 +435,17 @@ export function initMemories(context) {
       for (let i = 0; i < reihenfolge.length; i += 1) {
         const entry = reihenfolge[i];
         const schluessel = keyOf(entry);
-        const nummer = entry.kind === 'photo' ? fotos.indexOf(entry) + 1 : videos.indexOf(entry) + 1;
 
         // Schon erledigt? Dann nicht noch einmal hochladen.
         if (state.done.has(schluessel)) {
           fertigeBytes += entry.file.size;
           continue;
         }
+
+        // Die Nummer wird erst hier vergeben und laeuft immer weiter. So kann
+        // ein Wiederholungsversuch nicht auf einen belegten Pfad stossen.
+        state.nextIndex[entry.kind] += 1;
+        const nummer = state.nextIndex[entry.kind];
 
         const pfad = buildMemoryFilePath({
           folder: state.folder,
@@ -538,6 +558,12 @@ export function initMemories(context) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  /** Deutsche Ein- und Mehrzahl: "1 Foto", "2 Fotos". */
+  function anzahl(wert, einzahl, mehrzahl) {
+    const zahl = Number(wert) || 0;
+    return `${zahl} ${zahl === 1 ? einzahl : mehrzahl}`;
+  }
+
   /** Ein Teil ist angekommen, ein Teil nicht. */
   function zeigeTeilerfolg(fehlgeschlagen, ergebnis) {
     showPanel('form');
@@ -552,18 +578,17 @@ export function initMemories(context) {
       );
     }
     meldungen.push(
-      `Bereits gespeichert: ${ergebnis.photoCount} Fotos und ${ergebnis.videoCount} Videos. ` +
+      `Bereits gespeichert: ${anzahl(ergebnis.photoCount, 'Foto', 'Fotos')} und ` +
+        `${anzahl(ergebnis.videoCount, 'Video', 'Videos')}. ` +
         'Tipp einfach noch einmal auf „Erinnerung hochladen“ – es wird nur nachgereicht, was fehlt.',
     );
     showMessages(meldungen);
 
-    // Die erfolgreichen Dateien aus der Liste nehmen, damit klar ist,
-    // was noch offen ist.
-    for (const entry of [...state.files]) {
-      if (state.done.has(keyOf(entry))) {
-        if (entry.previewUrl) URL.revokeObjectURL(entry.previewUrl);
-        state.files = state.files.filter((other) => other !== entry);
-      }
+    // Die erfolgreichen Dateien bleiben in der Liste, werden aber als
+    // gespeichert gekennzeichnet. Sie zaehlen weiter gegen die Obergrenze
+    // dieses Vorgangs und koennen nicht mehr entfernt werden.
+    for (const entry of state.files) {
+      if (state.done.has(keyOf(entry))) entry.stored = true;
     }
     render();
   }
@@ -577,6 +602,7 @@ export function initMemories(context) {
     state.done = new Map();
     state.uploadId = null;
     state.folder = null;
+    state.nextIndex = { photo: 0, video: 0 };
     $('[data-memory-message]').value = '';
     $('#memory-name-error').textContent = '';
     for (const kind of ['photo', 'video']) {

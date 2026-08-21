@@ -680,6 +680,22 @@
   height: 44px;
 }
 
+/* Schon hochgeladene Dateien bleiben sichtbar, aber ruhig im Hintergrund. */
+.memory-item--stored {
+  opacity: 0.72;
+}
+
+.memory-item__stored {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  color: var(--c-success, #2e7d5b);
+}
+
 .memories-summary {
   margin-top: var(--sp-5);
   margin-bottom: 0;
