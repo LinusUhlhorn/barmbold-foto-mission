@@ -655,6 +655,14 @@ function renderPublicGallery() {
   }
 }
 
+/** Kurzform der vergebenen Herzen, um zwei Staende zu vergleichen. */
+function voteFingerprint(votes) {
+  return [...(votes || new Map()).entries()]
+    .map(([id, kategorie]) => `${id}:${kategorie}`)
+    .sort()
+    .join('|');
+}
+
 /**
  * Sind die signierten Bildlinks noch frisch genug?
  * Sie laufen nach config.supabase.signedUrlTtlSeconds ab; deshalb wird die
@@ -674,6 +682,16 @@ async function loadPublicGallery() {
   gallery.loading = true;
   const errorNode = $('[data-public-gallery-error]');
   showError(errorNode, null);
+
+  // Beim allerersten Laden steht noch nichts auf der Seite. Dann zeigt der
+  // Platzhalter, dass etwas kommt - sonst wirkt die Galerie faelschlich leer.
+  const platzhalter = $('[data-public-gallery-loading]');
+  const ersteLadung = !gallery.loaded;
+  if (ersteLadung && platzhalter) {
+    platzhalter.hidden = false;
+    $('[data-public-gallery-empty]').hidden = true;
+  }
+
   try {
     gallery.rows = await supabase.listPublicSubmissions();
 
@@ -684,21 +702,30 @@ async function loadPublicGallery() {
       config.supabase.signedUrlTtlSeconds,
     );
 
+    // Ab hier ist alles da, was die Galerie zum Anzeigen braucht. Sie wird
+    // sofort aufgebaut - mit den gemerkten Herzen dieses Geraets. Auf die
+    // Nachfrage bei der Datenbank zu warten, waere bei schlechtem Netz eine
+    // unnoetige weitere Wartezeit vor dem ersten Bild.
+    gallery.loaded = true;
+    gallery.loadedAt = Date.now();
+    if (platzhalter) platzhalter.hidden = true;
+    renderPublicGallery();
+
     // Welche Herzen hat dieses Geraet schon vergeben? Die Datenbank weiss es
     // genauer als der Browser-Speicher - schlaegt sie fehl, bleibt der
     // gemerkte Stand stehen.
     try {
+      const vorher = voteFingerprint(gallery.votes);
       gallery.votes = await supabase.listMyVotes(device.deviceId);
       rememberVotes(gallery.votes);
+      // Nur neu zeichnen, wenn wirklich etwas anderes herauskam. Sonst
+      // wuerde die Galerie ohne Grund unter den Fingern neu aufgebaut.
+      if (voteFingerprint(gallery.votes) !== vorher) renderPublicGallery();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.warn('Die vergebenen Herzen konnten nicht gelesen werden.', error);
       if (gallery.votes.size === 0) gallery.votes = storedVotes();
     }
-
-    gallery.loaded = true;
-    gallery.loadedAt = Date.now();
-    renderPublicGallery();
 
     // Fehlende Bildlinks sind der haeufigste Stolperstein (die Leseregel fuer
     // den Speicher fehlt in Supabase). Frueher blieben die Kacheln einfach
@@ -723,6 +750,42 @@ async function loadPublicGallery() {
     showError(errorNode, describeError(error));
   } finally {
     gallery.loading = false;
+    if (platzhalter) platzhalter.hidden = true;
+    // Ging etwas schief, steht die Fehlermeldung da. Dann waere zusaetzlich
+    // "Noch sind keine Fotos" nur verwirrend.
+    if (!gallery.loaded) $('[data-public-gallery-empty]').hidden = true;
+  }
+}
+
+/**
+ * Laedt die Galerie einmal still im Hintergrund vor, kurz nachdem die Seite
+ * steht. Wer spaeter auf "Galerie" tippt, sieht sie dann sofort.
+ *
+ * Bewusst zurueckhaltend:
+ *   - erst wenn der Browser Ruhe hat (requestIdleCallback), spaetestens nach
+ *     eineinhalb Sekunden
+ *   - nur ein einziges Mal, kein Nachladen im Hintergrund
+ *   - nur die Liste und die Bildlinks; die Fotos selbst holt der Browser
+ *     weiterhin erst, wenn die Galerie wirklich sichtbar ist
+ *   - nicht, wenn das Geraet gerade offline ist
+ */
+function preloadPublicGallery() {
+  if (!supabaseReady) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  let gestartet = false;
+  const starten = () => {
+    if (gestartet) return;
+    gestartet = true;
+    // Ein Fehler hier darf nichts weiter ausloesen: Wer die Galerie oeffnet,
+    // laedt sie ohnehin erneut.
+    loadPublicGallery().catch(() => {});
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(starten, { timeout: 1500 });
+  } else {
+    window.setTimeout(starten, 1500);
   }
 }
 
@@ -1712,6 +1775,9 @@ async function init() {
   setupMemories();
   setupTestMode();
   bindEvents();
+
+  // Die Galerie schon einmal still vorbereiten, waehrend der Gast noch liest.
+  preloadPublicGallery();
 
   // Startanimation ausblenden
   const boot = $('[data-boot]');

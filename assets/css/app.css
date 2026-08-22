@@ -252,6 +252,49 @@
   gap: var(--sp-3);
 }
 
+/* Ladeplatzhalter: ruhige, angedeutete Kacheln statt einer leeren Seite. */
+.gallery-loading__text {
+  margin: 0 0 var(--sp-3);
+  text-align: center;
+}
+
+.gallery-loading__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.gallery-loading__card {
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.04) 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 70%
+  );
+  background-size: 300% 100%;
+  animation: gallery-loading-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes gallery-loading-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* Wer ruhige Darstellung eingestellt hat, bekommt keine Bewegung. */
+@media (prefers-reduced-motion: reduce) {
+  .gallery-loading__card {
+    animation: none;
+  }
+}
+
 .public-photo {
   position: relative;
   overflow: hidden;
@@ -372,7 +415,8 @@
 }
 
 @media (min-width: 42rem) {
-  .public-gallery__grid {
+  .public-gallery__grid,
+  .gallery-loading__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

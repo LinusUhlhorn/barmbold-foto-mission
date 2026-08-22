@@ -19,7 +19,7 @@
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/img/favicon.svg" />
     <link rel="stylesheet" href="assets/css/base.css?v=0367b3c8" />
-    <link rel="stylesheet" href="assets/css/app.css?v=bc1ea224" />
+    <link rel="stylesheet" href="assets/css/app.css?v=afcf3e34" />
   </head>
   <body>
     <a class="skip-link" href="#hauptbereich">Zum Inhalt springen</a>
@@ -484,6 +484,17 @@
 
           <div class="notice notice--error" data-public-gallery-error hidden></div>
           <div class="gallery-groups" data-public-gallery-groups></div>
+          <!-- Platzhalter, solange die Galerie noch laedt. Ohne ihn sieht die
+               Seite bei langsamem Netz kurz aus wie eine leere Galerie. -->
+          <div class="gallery-loading" data-public-gallery-loading hidden aria-hidden="true">
+            <p class="hint gallery-loading__text">Die Fotos werden geladen …</p>
+            <div class="gallery-loading__grid">
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+            </div>
+          </div>
           <div class="empty" data-public-gallery-empty hidden>
             Noch sind keine Fotos in der Galerie. Das erste Foto wartet auf euch.
           </div>
@@ -740,6 +751,6 @@
       </div>
     </noscript>
 
-    <script type="module" src="assets/js/app.js?v=4ef875ff"></script>
+    <script type="module" src="assets/js/app.js?v=c31d34ac"></script>
   </body>
 </html>
