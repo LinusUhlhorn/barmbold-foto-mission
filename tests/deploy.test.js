@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FTP_EXCLUDES, REQUIRED_FILES } from '../tools/deploy-manifest.js';
+import { STAMPED_PAGES, assetStamp } from '../tools/stamp-assets.js';
 import { PARTY_CONFIG } from '../config/party-config.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -219,33 +220,20 @@ test('Die SQL-Datei aktiviert Row Level Security', () => {
   assert.match(sql, /force row level security/i);
 });
 
-test('Gäste dürfen nur eintragen - nicht lesen, ändern oder löschen', () => {
-  // Für anon gibt es genau EINE Regel, und die ist "for insert".
-  const anonPolicies = [...sql.matchAll(/create policy[\s\S]*?;/g)].filter((m) =>
-    /to anon/.test(m[0]),
+test('Gäste dürfen hochladen und echte Feierfotos sehen, aber nichts löschen', () => {
+  assert.match(sql, /create policy "Gaeste duerfen eintragen"[\s\S]*?for insert[\s\S]*?to anon/i);
+  assert.match(sql, /create policy "Oeffentliche Galerie darf lesen"[\s\S]*?for select[\s\S]*?using \(not is_test\)/i);
+  const anonDelete = [...sql.matchAll(/create policy[\s\S]*?;/g)].find(
+    (m) => /to anon/.test(m[0]) && /for delete/i.test(m[0]),
   );
-  assert.ok(anonPolicies.length >= 1, 'Es gibt keine Regel für Gäste');
-  for (const policy of anonPolicies) {
-    assert.match(policy[0], /for insert/i, `Gäste bekommen mehr als nur "insert":\n${policy[0]}`);
-  }
+  assert.equal(anonDelete, undefined, 'Anonyme Gäste dürfen Fotos löschen');
 });
 
-test('Lesen und Löschen ist nur für eingetragene Admins erlaubt', () => {
-  for (const abschnitt of ['for select', 'for delete']) {
-    const policies = [...sql.matchAll(/create policy[\s\S]*?;/g)].filter((m) =>
-      m[0].toLowerCase().includes(abschnitt),
-    );
-    assert.ok(policies.length > 0, `Keine Regel für "${abschnitt}"`);
-    for (const policy of policies) {
-      // Die einzige Ausnahme ist der eigene Admin-Eintrag.
-      if (policy[0].includes('album_admins')) continue;
-      assert.match(
-        policy[0],
-        /is_album_admin\(\)/,
-        `"${abschnitt}" ohne Admin-Prüfung:\n${policy[0]}`,
-      );
-    }
-  }
+test('Löschen und Testfotos bleiben auf eingetragene Admins begrenzt', () => {
+  assert.match(sql, /create policy "Nur Admin darf lesen"[\s\S]*?is_album_admin\(\)/i);
+  assert.match(sql, /create policy "Nur Admin darf loeschen"[\s\S]*?is_album_admin\(\)/i);
+  assert.match(sql, /create policy "Galerie darf Feierfotos ansehen"[\s\S]*?name like 'party\/%'/i);
+  assert.ok(!/Galerie darf Feierfotos ansehen[\s\S]*?test\/%/.test(sql));
 });
 
 test('Der Speicher-Bucket ist nicht öffentlich', () => {
@@ -294,6 +282,38 @@ test('Doppelte Uploads werden von der Datenbank verhindert', () => {
   assert.match(sql, /storage_path\s+text\s+not null unique/i);
 });
 
+test('Ein Gerät bekommt je Kategorie nur ein Herz', () => {
+  // Die Regel steht in der Datenbank, nicht nur im Browser: Ein geleerter
+  // Speicher oder ein zweiter Tab darf keine zusätzlichen Herzen bringen.
+  assert.match(
+    sql,
+    /create unique index if not exists photo_votes_ein_herz_je_kategorie\s*\n?\s*on public\.photo_votes \(voter_id, mission_category\)/i,
+  );
+  assert.match(sql, /alter table public\.photo_votes\s*\n?\s*add column if not exists mission_category text/i);
+});
+
+test('Herzen lassen sich vergeben, wegnehmen und umsetzen', () => {
+  assert.match(sql, /create or replace function public\.toggle_photo_vote\(/i);
+  assert.match(sql, /returns jsonb/i);
+  // Wegnehmen darf den Zähler nie unter null drücken.
+  assert.match(sql, /greatest\(likes_count - 1, 0\)/);
+  // Nur echte Feierfotos sind bewertbar.
+  assert.match(sql, /toggle_photo_vote[\s\S]*?and not is_test/i);
+  assert.match(sql, /grant execute on function public\.toggle_photo_vote\(uuid, uuid\) to anon, authenticated/i);
+});
+
+test('Die Seite kann die eigenen Herzen wieder auslesen', () => {
+  assert.match(sql, /create or replace function public\.my_photo_votes\(p_voter_id uuid\)/i);
+  assert.match(sql, /grant execute on function public\.my_photo_votes\(uuid\) to anon, authenticated/i);
+});
+
+test('Die Wertungstabelle selbst bleibt für Gäste gesperrt', () => {
+  assert.match(sql, /alter table public\.photo_votes force row level security/i);
+  assert.match(sql, /revoke all on public\.photo_votes from anon, authenticated/i);
+  // Der Zugriff läuft ausschließlich über die geprüften Funktionen.
+  assert.match(sql, /security definer/i);
+});
+
 test('Es gibt Indizes für Zeitleiste, Filter und Testfotos', () => {
   assert.match(sql, /create index if not exists photo_submissions_created_at_idx/i);
   assert.match(sql, /create index if not exists photo_submissions_mission_idx/i);
@@ -312,12 +332,81 @@ test('In der SQL-Datei steht kein echter Schlüssel und kein echtes Passwort', (
 });
 
 test('Die gefährlichen Aufräum-Befehle sind auskommentiert', () => {
+  // Fotos, Admins und Dateien dürfen von dieser Datei NIEMALS angetastet
+  // werden - sie soll auch nach der Feier gefahrlos erneut laufen können.
+  const unantastbar =
+    /^delete from\s+(public\.(photo_submissions|album_admins)|storage\.(objects|buckets))\b/i;
   for (const zeile of sql.split('\n')) {
     const trimmed = zeile.trim();
-    if (/^(drop table|delete from)/i.test(trimmed)) {
+    if (/^drop table/i.test(trimmed) || unantastbar.test(trimmed)) {
       assert.fail(`Dieser Befehl darf nicht aktiv sein: ${trimmed}`);
     }
+    // Aufräumen in photo_votes ist erlaubt: Das sind nur Herz-Wertungen, und
+    // die Umstellung auf "ein Herz je Kategorie" braucht es. Alles andere nicht.
+    if (/^delete from/i.test(trimmed)) {
+      assert.match(
+        trimmed,
+        /^delete from public\.photo_votes\b/i,
+        `Dieser Befehl darf nicht aktiv sein: ${trimmed}`,
+      );
+    }
   }
-  // Sie müssen aber als Anleitung vorhanden sein.
+  // Die gefährlichen Befehle müssen aber als Anleitung vorhanden sein.
   assert.match(sql, /-- delete from public\.photo_submissions where is_test;/);
+});
+
+// =========================================================================
+// Versionsstempel und Webserver-Einstellungen
+// =========================================================================
+
+test('Alle CSS- und JS-Verweise tragen einen aktuellen Versionsstempel', () => {
+  // Ohne Stempel holt sich der Browser nach einem Update zwar die neue
+  // HTML-Seite, benutzt aber das alte CSS und JavaScript aus seinem
+  // Zwischenspeicher. Dann passt beides nicht zusammen.
+  for (const page of STAMPED_PAGES) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const verweise = [...html.matchAll(/(?:href|src)="([^"]+\.(?:css|js))(\?[^"]*)?"/g)];
+    assert.ok(verweise.length > 0, `${page} verweist auf keine CSS- oder JS-Datei`);
+
+    for (const [, pfad, query] of verweise) {
+      if (/^(https?:|data:)/.test(pfad)) continue;
+      assert.ok(query, `${page}: "${pfad}" hat keinen Versionsstempel (npm run stamp)`);
+      const erwartet = assetStamp(path.resolve(path.dirname(path.join(ROOT, page)), pfad));
+      assert.equal(
+        query,
+        `?v=${erwartet}`,
+        `${page}: Der Stempel von "${pfad}" ist veraltet. Bitte "npm run stamp" ausführen.`,
+      );
+    }
+  }
+});
+
+test('Der Webserver bekommt die Anweisung, Seiten nicht zu horten', () => {
+  const htaccess = fs.readFileSync(path.join(ROOT, '.htaccess'), 'utf8');
+  // Der Kern: HTML, CSS und JS müssen vor dem Verwenden gegengeprüft werden.
+  assert.match(htaccess, /<FilesMatch "\\\.\(html\|css\|js\|json\)\$">/);
+  assert.match(htaccess, /Cache-Control "no-cache, must-revalidate"/);
+  // Alles steht in IfModule-Blöcken: Fehlt das Modul, gibt es keinen Fehler
+  // (sonst würde die ganze Seite mit "500" antworten).
+  const zeilen = htaccess.split('\n').map((z) => z.trim());
+  let tiefe = 0;
+  for (const zeile of zeilen) {
+    if (/^<IfModule/.test(zeile)) tiefe += 1;
+    else if (/^<\/IfModule>/.test(zeile)) tiefe -= 1;
+    else if (/^(Header|AddDefaultCharset|AddCharset)\b/.test(zeile)) {
+      assert.ok(tiefe > 0, `Diese Anweisung steht ungeschützt: ${zeile}`);
+    }
+  }
+  assert.equal(tiefe, 0, 'Ein IfModule-Block ist nicht geschlossen');
+});
+
+test('Die .htaccess wird auch wirklich hochgeladen', () => {
+  // Sie darf nicht versehentlich von einem Ausschlussmuster erfasst werden.
+  for (const muster of FTP_EXCLUDES) {
+    assert.ok(
+      !/^\*\*\/\.h/.test(muster) && muster !== '**/.*',
+      `Das Muster "${muster}" würde die .htaccess ausschließen`,
+    );
+  }
+  assert.ok(REQUIRED_FILES.includes('.htaccess'), '.htaccess fehlt in den Pflichtdateien');
 });

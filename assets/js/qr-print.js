@@ -17,11 +17,11 @@ const live = $('[data-live]');
 
 const TEXTS = {
   // Die Überzeile greift den Titel der App auf und wiederholt nicht die Überschrift.
-  eyebrow: `Level ${config.party.age}`,
+  eyebrow: `${config.party.age} Jahre gemeinsam`,
   title: 'DEINE FOTO-MISSION',
   subtitle: 'Zieh eine Aufgabe und halte einen besonderen Moment fest.',
   steps: 'Scannen · Mission ziehen · Foto aufnehmen',
-  note: 'Privates Party-Album – Bilder sind nicht öffentlich sichtbar',
+  note: 'Privates Silberhochzeits-Album – Bilder sind nicht öffentlich sichtbar',
   gift: config.party.giftedBy,
 };
 

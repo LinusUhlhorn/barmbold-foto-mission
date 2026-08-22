@@ -142,10 +142,15 @@ export function createDeviceState(storage) {
 
 /**
  * Entscheidet, was der Gast als Naechstes darf.
+ *
+ * Reihenfolge: erst die regulaeren Missionen, dann die Bonus-Mission.
+ * Danach ist niemand ausgesperrt: "canExtra" erlaubt beliebig viele
+ * freiwillige Zusatz-Missionen (Konfiguration: limits.allowExtraMissions).
+ *
  * @param {{countCompleted: Function}} device
- * @param {{regularMissionsPerDevice?: number, bonusMissionsPerDevice?: number}} limits
+ * @param {{regularMissionsPerDevice?: number, bonusMissionsPerDevice?: number, allowExtraMissions?: boolean}} limits
  * @param {boolean} testMode
- * @returns {{canRegular: boolean, canBonus: boolean, regularDone: number, bonusDone: number}}
+ * @returns {{canRegular: boolean, canBonus: boolean, canExtra: boolean, regularDone: number, bonusDone: number, extraDone: number}}
  */
 export function missionAllowance(device, limits = {}, testMode = false) {
   const maxRegular = Number.isFinite(limits.regularMissionsPerDevice)
@@ -156,15 +161,19 @@ export function missionAllowance(device, limits = {}, testMode = false) {
     : 1;
   const regularDone = device.countCompleted('regular');
   const bonusDone = device.countCompleted('bonus');
+  const extraDone = device.countCompleted('extra');
+  const canExtra = limits.allowExtraMissions !== false;
 
   if (testMode) {
     // Im Testmodus darf beliebig oft gezogen werden.
-    return { canRegular: true, canBonus: true, regularDone, bonusDone };
+    return { canRegular: true, canBonus: true, canExtra, regularDone, bonusDone, extraDone };
   }
   return {
     canRegular: regularDone < maxRegular,
-    canBonus: regularDone > 0 && bonusDone < maxBonus,
+    canBonus: regularDone >= maxRegular && bonusDone < maxBonus,
+    canExtra,
     regularDone,
     bonusDone,
+    extraDone,
   };
 }

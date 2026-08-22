@@ -6,25 +6,25 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <title>Foto-Mission</title>
+    <title>Silberhochzeit · Britta & Lutz · Foto-Mission</title>
     <meta
       name="description"
-      content="Zieh eine zufällige Foto-Mission und werde Teil des privaten Party-Albums."
+      content="Foto-Mission zur Silberhochzeit von Britta und Lutz Barmbold."
     />
-    <meta name="theme-color" content="#07060f" />
+    <meta name="theme-color" content="#151719" />
     <meta name="color-scheme" content="dark" />
     <!-- Kein Tracking, keine Werbung, keine externen Dienste. -->
     <meta name="robots" content="noindex, nofollow" />
     <meta name="referrer" content="no-referrer" />
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/img/favicon.svg" />
-    <link rel="stylesheet" href="assets/css/base.css" />
-    <link rel="stylesheet" href="assets/css/app.css" />
+    <link rel="stylesheet" href="assets/css/base.css?v=0367b3c8" />
+    <link rel="stylesheet" href="assets/css/app.css?v=afcf3e34" />
   </head>
   <body>
     <a class="skip-link" href="#hauptbereich">Zum Inhalt springen</a>
 
-    <!-- Hintergrund: Nachtaufnahme-Optik -->
+    <!-- Hintergrund: festliche Silber- und Champagneroptik -->
     <div class="backdrop" aria-hidden="true">
       <div class="backdrop__glow backdrop__glow--a"></div>
       <div class="backdrop__glow backdrop__glow--b"></div>
@@ -67,16 +67,30 @@
           <span class="brandmark__dot"></span>
           <span data-brand-label>Foto-Mission</span>
         </p>
-        <button
-          type="button"
-          class="btn btn--icon"
-          data-sound-toggle
-          aria-pressed="false"
-          title="Ton ein- oder ausschalten"
-        >
-          <span class="visually-hidden">Ton ein- oder ausschalten</span>
-        </button>
+        <div class="topbar__actions">
+          <button
+            type="button"
+            class="btn btn--icon"
+            data-sound-toggle
+            aria-pressed="false"
+            title="Ton ein- oder ausschalten"
+          >
+            <span class="visually-hidden">Ton ein- oder ausschalten</span>
+          </button>
+        </div>
       </header>
+
+      <nav class="app-tabs" aria-label="Hauptbereiche">
+        <button class="app-tabs__button is-active" type="button" data-view-tab="mission" aria-pressed="true">
+          Mission
+        </button>
+        <button class="app-tabs__button" type="button" data-view-tab="gallery" aria-pressed="false">
+          Galerie
+        </button>
+        <button class="app-tabs__button" type="button" data-view-tab="memories" aria-pressed="false" data-memories-tab>
+          Erinnerungen
+        </button>
+      </nav>
 
       <!-- Wird nur im Testmodus eingeblendet -->
       <div class="test-banner" data-test-banner hidden>
@@ -128,10 +142,9 @@
                   enterkeyhint="go"
                   maxlength="40"
                   spellcheck="false"
-                  aria-describedby="guest-name-error guest-name-help"
+                  aria-describedby="guest-name-error"
                 />
                 <span class="field__error" id="guest-name-error" role="alert"></span>
-                <span class="hint" id="guest-name-help" data-text="nameHelp"></span>
               </div>
 
               <div class="btn-row">
@@ -250,27 +263,33 @@
         <!-- ============================================================
              5. VORSCHAU
              ============================================================ -->
-        <section class="screen" data-screen="preview" aria-labelledby="preview-headline">
-          <div class="card">
-            <h2 class="headline" id="preview-headline" data-text="previewTitle">
-              Sieht das gut aus?
-            </h2>
+        <section class="screen screen--sheet" data-screen="preview" aria-labelledby="preview-headline">
+          <div class="card card--sheet">
+            <!-- Scrollbereich: alles, was zur Not weggescrollt werden darf. -->
+            <div class="card__scroll">
+              <h2 class="headline" id="preview-headline" data-text="previewTitle">
+                Sieht das gut aus?
+              </h2>
 
-            <div class="preview" style="margin-top: var(--sp-4)">
-              <img class="preview__image" data-preview-image alt="Vorschau deines aufgenommenen Fotos" />
-              <div class="preview__facts" data-preview-facts></div>
+              <div class="preview" style="margin-top: var(--sp-4)">
+                <img class="preview__image" data-preview-image alt="Vorschau deines aufgenommenen Fotos" />
+                <div class="preview__facts" data-preview-facts></div>
+              </div>
             </div>
 
-            <div class="btn-row">
+            <!-- Aktionsbereich: bleibt auf dem Handy immer sichtbar. -->
+            <div class="card__actions">
               <button type="button" class="btn btn--primary" data-use-photo>
                 <span data-text="usePhotoButton">Dieses Foto verwenden</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-retake-photo>
-                <span data-text="retakeButton">Neu aufnehmen</span>
-              </button>
-              <button type="button" class="btn btn--ghost btn--small" data-cancel-mission-2>
-                <span data-text="cancelMissionButton">Mission abbrechen</span>
-              </button>
+              <div class="btn-row btn-row--inline btn-row--tight">
+                <button type="button" class="btn btn--secondary btn--small" data-retake-photo>
+                  <span data-text="retakeButton">Neu aufnehmen</span>
+                </button>
+                <button type="button" class="btn btn--ghost btn--small" data-cancel-mission-2>
+                  <span data-text="cancelMissionButton">Mission abbrechen</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -278,57 +297,52 @@
         <!-- ============================================================
              6. BESTÄTIGEN UND HOCHLADEN
              ============================================================ -->
-        <section class="screen" data-screen="confirm" aria-labelledby="confirm-headline">
-          <div class="card">
-            <h2 class="headline" id="confirm-headline" data-text="confirmTitle">Letzter Blick</h2>
+        <section class="screen screen--sheet" data-screen="confirm" aria-labelledby="confirm-headline">
+          <div class="card card--sheet">
+            <!-- Scrollbereich: Angaben und Foto. -->
+            <div class="card__scroll">
+              <h2 class="headline" id="confirm-headline" data-text="confirmTitle">Letzter Blick</h2>
 
-            <div class="summary" style="margin-top: var(--sp-4)">
-              <div class="summary__row">
-                <span class="summary__key">Name</span>
-                <span class="summary__value" data-confirm-name></span>
+              <!-- Meldungen stehen oben, damit sie beim Zurückspringen sofort auffallen. -->
+              <div class="notice notice--error" style="margin-top: var(--sp-4)" data-confirm-error hidden></div>
+
+              <div class="summary" style="margin-top: var(--sp-4)">
+                <div class="summary__row">
+                  <span class="summary__key">Name</span>
+                  <span class="summary__value" data-confirm-name></span>
+                </div>
+                <div class="summary__row">
+                  <span class="summary__key">Mission</span>
+                  <span class="summary__value" data-confirm-mission></span>
+                </div>
+                <div class="summary__row">
+                  <span class="summary__key">Foto</span>
+                  <span class="summary__value" data-confirm-file></span>
+                </div>
               </div>
-              <div class="summary__row">
-                <span class="summary__key">Mission</span>
-                <span class="summary__value" data-confirm-mission></span>
+
+              <div class="preview">
+                <img class="preview__image preview__image--small" data-confirm-image alt="Dein Foto vor dem Hochladen" />
               </div>
-              <div class="summary__row">
-                <span class="summary__key">Foto</span>
-                <span class="summary__value" data-confirm-file></span>
-              </div>
+
+              <p class="hint" data-text-privacy="consentHint"></p>
             </div>
 
-            <div class="preview">
-              <img class="preview__image" data-confirm-image alt="Dein Foto vor dem Hochladen" />
-            </div>
+            <!-- Aktionsbereich: Haken und Hochladen bleiben immer sichtbar. -->
+            <div class="card__actions">
+              <label class="checkbox checkbox--tight">
+                <input type="checkbox" data-consent />
+                <span class="checkbox__text" data-text-privacy="consentLabel"></span>
+              </label>
+              <span class="field__error" data-consent-error role="alert"></span>
 
-            <div class="notice notice--info" style="margin-top: var(--sp-4)">
-              <svg class="notice__icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 11v6M12 7.5v.6" stroke-linecap="round" />
-              </svg>
-              <span>
-                <span data-text-privacy="notice"></span>
-                <br />
-                <span data-text-privacy="peopleNotice" class="hint"></span>
-              </span>
-            </div>
-
-            <label class="checkbox">
-              <input type="checkbox" data-consent />
-              <span class="checkbox__text" data-text-privacy="consentLabel"></span>
-            </label>
-            <span class="field__error" data-consent-error role="alert"></span>
-
-            <div class="btn-row">
               <button type="button" class="btn btn--primary" data-upload-button>
                 <span data-text="uploadButton">Foto ins Album hochladen</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-back-to-preview>
+              <button type="button" class="btn btn--ghost btn--small" data-back-to-preview>
                 Zurück zur Vorschau
               </button>
             </div>
-
-            <div class="notice notice--error" style="margin-top: var(--sp-4)" data-confirm-error hidden></div>
           </div>
         </section>
 
@@ -385,11 +399,28 @@
             <p class="subline" data-text="successText"></p>
 
             <div class="btn-row">
+              <button type="button" class="btn btn--primary" data-next-mission hidden>
+                <span data-text="nextMissionButton">Nächste Mission ziehen</span>
+              </button>
               <button type="button" class="btn btn--primary" data-bonus-button hidden>
                 <span data-text="bonusButton">Bonus-Mission ziehen</span>
               </button>
-              <button type="button" class="btn btn--secondary" data-done-button>
+              <button type="button" class="btn btn--primary" data-extra-mission hidden>
+                <span data-text="extraMissionButton">Noch eine Mission ziehen</span>
+              </button>
+              <button type="button" class="btn btn--secondary" data-success-gallery>
+                <span data-text="galleryButton">Zur Galerie</span>
+              </button>
+              <button type="button" class="btn btn--ghost btn--small" data-done-button>
                 <span data-text="doneButton">Fertig</span>
+              </button>
+            </div>
+
+            <!-- Dezenter Hinweis auf den privaten Bereich -->
+            <div class="memories-hint" data-memories-hint hidden>
+              <p class="hint" data-text-memories="missionHint"></p>
+              <button type="button" class="btn btn--ghost btn--small" data-memories-jump>
+                <span data-text-memories="missionHintButton">Erinnerungen hochladen</span>
               </button>
             </div>
           </div>
@@ -413,6 +444,220 @@
               <button type="button" class="btn btn--primary" data-finished-bonus hidden>
                 <span data-text="bonusButton">Bonus-Mission ziehen</span>
               </button>
+              <button type="button" class="btn btn--primary" data-finished-extra hidden>
+                <span data-text="extraMissionButton">Noch eine Mission ziehen</span>
+              </button>
+              <button type="button" class="btn btn--secondary" data-finished-gallery>
+                <span data-text="galleryButton">Zur Galerie</span>
+              </button>
+            </div>
+
+            <!-- Dezenter Hinweis auf den privaten Bereich -->
+            <div class="memories-hint" data-memories-hint-2 hidden>
+              <p class="hint" data-text-memories="missionHint"></p>
+              <button type="button" class="btn btn--ghost btn--small" data-memories-jump-2>
+                <span data-text-memories="missionHintButton">Erinnerungen hochladen</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="public-gallery" data-public-gallery hidden aria-labelledby="gallery-title">
+          <div class="gallery-heading">
+            <p class="eyebrow">Silberhochzeits-Album</p>
+            <h1 class="headline headline--gradient" id="gallery-title" tabindex="-1">Eure schönsten Momente</h1>
+            <p class="subline">Entdeckt die Fotos des Abends und schenkt euren Favoriten ein Herz.</p>
+          </div>
+
+          <!-- Kategorien mit Anzahl. Ein Tipp filtert die Galerie. -->
+          <div class="gallery-pills" data-gallery-pills role="group" aria-label="Nach Kategorie filtern"></div>
+
+          <!-- Einzelne Aufgabe herausgreifen -->
+          <div class="card gallery-mission">
+            <label class="field" style="margin-top: 0">
+              <span class="field__label">Einzelne Aufgabe</span>
+              <select data-public-gallery-mission>
+                <option value="">Alle Aufgaben</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="notice notice--error" data-public-gallery-error hidden></div>
+          <div class="gallery-groups" data-public-gallery-groups></div>
+          <!-- Platzhalter, solange die Galerie noch laedt. Ohne ihn sieht die
+               Seite bei langsamem Netz kurz aus wie eine leere Galerie. -->
+          <div class="gallery-loading" data-public-gallery-loading hidden aria-hidden="true">
+            <p class="hint gallery-loading__text">Die Fotos werden geladen …</p>
+            <div class="gallery-loading__grid">
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+              <div class="gallery-loading__card"></div>
+            </div>
+          </div>
+          <div class="empty" data-public-gallery-empty hidden>
+            Noch sind keine Fotos in der Galerie. Das erste Foto wartet auf euch.
+          </div>
+        </section>
+
+        <!-- ============================================================
+             PRIVATER BEREICH: FÜR BRITTA & LUTZ
+             Diese Aufnahmen erscheinen NIEMALS in der Galerie.
+             ============================================================ -->
+        <section class="memories" data-memories hidden aria-labelledby="memories-title">
+          <div class="gallery-heading">
+            <p class="eyebrow">Nur für das Jubelpaar</p>
+            <h1 class="headline headline--gradient" id="memories-title" tabindex="-1" data-text-memories="title">
+              Eine Erinnerung an diesen Abend
+            </h1>
+          </div>
+
+          <p class="private-badge" data-text-memories="privateBadge"></p>
+
+          <!-- ---------- Formular ---------- -->
+          <form class="card memories-form" data-memories-form novalidate>
+            <div class="field">
+              <label class="field__label" for="memory-name" data-text-memories="nameLabel">
+                Wie heißt du?
+              </label>
+              <input
+                class="field__input"
+                id="memory-name"
+                name="memoryName"
+                type="text"
+                autocomplete="given-name"
+                maxlength="40"
+                spellcheck="false"
+                aria-describedby="memory-name-hint memory-name-error"
+                data-memory-name
+              />
+              <span class="hint" id="memory-name-hint" data-text-memories="nameHint"></span>
+              <span class="field__error" id="memory-name-error" role="alert"></span>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="memory-message" data-text-memories="messageLabel">
+                Persönliche Nachricht (optional)
+              </label>
+              <textarea
+                class="field__input memories-message"
+                id="memory-message"
+                name="memoryMessage"
+                rows="3"
+                maxlength="1000"
+                data-memory-message
+              ></textarea>
+              <span class="hint" data-memory-message-count></span>
+            </div>
+
+            <!-- ---------- Fotos ---------- -->
+            <div class="dropbox" data-memory-box="photo">
+              <div class="dropbox__head">
+                <span class="dropbox__icon" data-memory-icon="photo" aria-hidden="true"></span>
+                <p class="dropbox__title" data-text-memories="photoBoxTitle">Fotos hinzufügen</p>
+              </div>
+              <p class="dropbox__counter" data-memory-counter="photo" role="status">
+                Fotos: 0 von 20 ausgewählt
+              </p>
+              <p class="hint" data-memory-formats="photo"></p>
+              <button type="button" class="btn btn--secondary" data-memory-add="photo">
+                Fotos auswählen
+              </button>
+              <p class="notice notice--warn dropbox__full" data-memory-full="photo" hidden></p>
+            </div>
+            <input
+              class="file-input"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
+              multiple
+              data-memory-input="photo"
+            />
+
+            <!-- ---------- Videos ---------- -->
+            <div class="dropbox" data-memory-box="video">
+              <div class="dropbox__head">
+                <span class="dropbox__icon" data-memory-icon="video" aria-hidden="true"></span>
+                <p class="dropbox__title" data-text-memories="videoBoxTitle">Videos hinzufügen</p>
+              </div>
+              <p class="dropbox__counter" data-memory-counter="video" role="status">
+                Videos: 0 von 5 ausgewählt
+              </p>
+              <p class="hint" data-text-memories="videoHint"></p>
+              <p class="hint" data-memory-formats="video"></p>
+              <button type="button" class="btn btn--secondary" data-memory-add="video">
+                Videos auswählen
+              </button>
+              <p class="notice notice--warn dropbox__full" data-memory-full="video" hidden></p>
+            </div>
+            <input
+              class="file-input"
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,video/*"
+              multiple
+              data-memory-input="video"
+            />
+
+            <div class="notice notice--error memories-error" data-memory-error hidden></div>
+
+            <!-- ---------- Ausgewählte Dateien ---------- -->
+            <div class="memory-group" data-memory-group="photo" hidden>
+              <h2 class="memory-group__title" data-memory-group-title="photo">Deine Fotos</h2>
+              <ul class="memory-list" data-memory-list="photo"></ul>
+            </div>
+            <div class="memory-group" data-memory-group="video" hidden>
+              <h2 class="memory-group__title" data-memory-group-title="video">Deine Videos</h2>
+              <ul class="memory-list" data-memory-list="video"></ul>
+            </div>
+
+            <div class="summary memories-summary" data-memory-summary hidden></div>
+
+            <div class="card__actions">
+              <button type="submit" class="btn btn--primary" data-memory-submit disabled>
+                <span data-text-memories="uploadButton">Erinnerung hochladen</span>
+              </button>
+              <p class="hint" data-memory-submit-hint></p>
+            </div>
+          </form>
+
+          <!-- ---------- Upload läuft ---------- -->
+          <div class="card memories-progress" data-memory-progress hidden>
+            <h2 class="headline">Deine Erinnerungen werden gespeichert …</h2>
+            <div class="progress">
+              <div
+                class="progress__track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-label="Fortschritt beim Hochladen"
+                data-memory-progress-track
+              >
+                <div class="progress__bar" data-memory-progress-bar></div>
+              </div>
+              <p class="progress__label">
+                <span data-memory-progress-text>Wird vorbereitet …</span>
+                <span data-memory-progress-percent></span>
+              </p>
+            </div>
+            <p class="hint" data-memory-progress-file></p>
+            <div class="notice notice--warn" data-memory-progress-warn hidden></div>
+          </div>
+
+          <!-- ---------- Geschafft ---------- -->
+          <div class="card card--gold memories-success" data-memory-success hidden>
+            <svg class="hero__ring" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M7.5 12.5 10.5 15.5 16.5 9" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <h2 class="headline" data-text-memories="successTitle" tabindex="-1" data-memory-success-title>
+              Vielen Dank!
+            </h2>
+            <p class="subline" data-text-memories="successText"></p>
+            <div class="summary" style="margin-top: var(--sp-5); text-align: left" data-memory-success-summary></div>
+            <div class="btn-row">
+              <button type="button" class="btn btn--secondary" data-memory-again>
+                <span data-text-memories="moreButton">Weitere Erinnerungen hochladen</span>
+              </button>
             </div>
           </div>
         </section>
@@ -421,10 +666,62 @@
       <footer class="footnote">
         <p data-gifted-by hidden></p>
         <p class="hint" style="margin-top: 6px">
-          Keine Werbung · kein Tracking · privates Album
+          Silberhochzeit · keine Werbung · kein Tracking
+        </p>
+        <p class="hint" style="margin-top: 6px">
+          <button class="footer-link" type="button" data-privacy-open>Datenschutz</button>
         </p>
       </footer>
     </div>
+
+    <!-- Foto in voller Größe. Öffnet sich beim Tippen auf ein Bild in der Galerie. -->
+    <div
+      class="lightbox"
+      data-lightbox
+      role="dialog"
+      aria-modal="true"
+      aria-label="Foto in voller Größe"
+    >
+      <div class="lightbox__bar">
+        <span class="hint" data-lightbox-position></span>
+        <button type="button" class="btn btn--icon" data-lightbox-close>
+          <span class="visually-hidden">Vollbild schließen</span>
+        </button>
+      </div>
+
+      <div class="lightbox__stage" data-lightbox-stage>
+        <button type="button" class="lightbox__nav lightbox__nav--prev" data-lightbox-prev>
+          <span class="visually-hidden">Vorheriges Foto</span>
+        </button>
+        <img class="lightbox__image" data-lightbox-image alt="" />
+        <button type="button" class="lightbox__nav lightbox__nav--next" data-lightbox-next>
+          <span class="visually-hidden">Nächstes Foto</span>
+        </button>
+      </div>
+
+      <div class="lightbox__caption">
+        <strong data-lightbox-name></strong>
+        <span class="lightbox__meta" data-lightbox-meta></span>
+      </div>
+
+      <div class="lightbox__tools">
+        <button type="button" class="btn btn--secondary public-photo__like" data-lightbox-like>
+          <span class="visually-hidden">Herz vergeben</span>
+        </button>
+      </div>
+    </div>
+
+    <dialog class="privacy-dialog" data-privacy-dialog aria-labelledby="privacy-title">
+      <div class="privacy-dialog__panel">
+        <p class="eyebrow">Hinweise</p>
+        <h2 class="headline" id="privacy-title">Datenschutz</h2>
+        <p class="subline" data-text-privacy="notice"></p>
+        <p class="hint" style="margin-top: var(--sp-4)" data-text-privacy="peopleNotice"></p>
+        <button class="btn btn--primary" type="button" data-privacy-close style="margin-top: var(--sp-5)">
+          Verstanden
+        </button>
+      </div>
+    </dialog>
 
     <!-- Auslöser, Blitz und Konfetti -->
     <div class="shutter-overlay" data-shutter aria-hidden="true">
@@ -454,6 +751,6 @@
       </div>
     </noscript>
 
-    <script type="module" src="assets/js/app.js"></script>
+    <script type="module" src="assets/js/app.js?v=c31d34ac"></script>
   </body>
 </html>

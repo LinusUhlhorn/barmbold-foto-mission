@@ -1,15 +1,17 @@
 {
-  "name": "foto-mission-app",
+  "name": "barmbold-foto-mission",
   "version": "1.0.0",
   "private": true,
-  "description": "Foto-Mission Web-App fuer eine private Geburtstagsfeier. Statische Anwendung ohne Build-Schritt.",
+  "description": "Foto-Mission zur Silberhochzeit von Britta und Lutz Barmbold.",
   "type": "module",
   "scripts": {
     "setup": "node tools/setup.js",
     "test": "node --test \"tests/*.test.js\"",
-    "build": "node tools/build.js",
+    "build": "node tools/stamp-assets.js && node tools/build.js",
     "start": "node tools/serve.js",
-    "dev": "node tools/serve.js"
+    "dev": "node tools/serve.js",
+    "export-erinnerungen": "node tools/export-memories.js",
+    "stamp": "node tools/stamp-assets.js"
   },
   "engines": {
     "node": ">=22"

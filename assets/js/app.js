@@ -7,7 +7,16 @@
 // =========================================================================
 
 import { PARTY_CONFIG } from '../../config/party-config.js';
-import { $, announce, clear, el, isTestMode, prefersReducedMotion, wait } from './lib/dom.js';
+import {
+  $,
+  announce,
+  clear,
+  el,
+  isTestMode,
+  prefersReducedMotion,
+  trapFocus,
+  wait,
+} from './lib/dom.js';
 import { applyBigNumber, applyEffects, applyTheme } from './lib/theme.js';
 import { createIcon } from './lib/icons.js';
 import { fillTemplate, formatBytes, validateName } from './lib/text.js';
@@ -28,6 +37,7 @@ import {
 } from './lib/supabase-rest.js';
 import { savePending, loadPending, clearPending } from './lib/idb.js';
 import { createSound, vibrate } from './lib/sound.js';
+import { initMemories } from './memories.js';
 
 const config = PARTY_CONFIG;
 const storage = browserStorage();
@@ -57,7 +67,32 @@ const run = {
   uploading: false,
 };
 
+const gallery = {
+  rows: [],
+  urls: new Map(),
+  // Foto-ID -> Kategorie: Welche Herzen hat dieses Geraet vergeben?
+  votes: new Map(),
+  // Foto-ID -> {row, button, countNode}: damit sich einzelne Karten
+  // aktualisieren lassen, ohne die ganze Galerie neu aufzubauen.
+  cards: new Map(),
+  loaded: false,
+  loading: false,
+  loadedAt: 0,
+  // Welche Kategorie ist gerade gewaehlt? Leer = alle.
+  category: '',
+  // Vollbild-Betrachter: die gerade sichtbare Reihenfolge und die Stelle darin.
+  viewRows: [],
+  viewIndex: -1,
+  releaseTrap: null,
+};
+
+const GALLERY_VOTES_KEY = 'foto-mission:gallery-votes:v2';
+
 const live = $('[data-live]');
+
+// Der private Bereich "Fuer Britta & Lutz". Wird beim Start aufgebaut und
+// bleibt null, wenn er in der Konfiguration abgeschaltet ist.
+let memories = null;
 
 // -------------------------------------------------------------------------
 // Bildschirme
@@ -103,6 +138,655 @@ function showError(node, message) {
   node.appendChild(el('span', { text: message }));
   node.hidden = false;
   announce(live, message);
+}
+
+// -------------------------------------------------------------------------
+// Oeffentliche Galerie
+// -------------------------------------------------------------------------
+
+/**
+ * Vergebene Herzen aus dem Browser-Speicher lesen.
+ * Die Datenbank bleibt die verlaessliche Quelle; das hier ist nur die
+ * Anzeige, solange die Galerie noch laedt oder gerade nichts erreichbar ist.
+ * @returns {Map<string, string>} Foto-ID -> Kategorie
+ */
+function storedVotes() {
+  const value = storage.get(GALLERY_VOTES_KEY, null);
+  const votes = new Map();
+  if (!value || typeof value !== 'object') return votes;
+  for (const [id, category] of Object.entries(value)) {
+    if (typeof id === 'string' && id !== '') {
+      votes.set(id, typeof category === 'string' ? category : '');
+    }
+  }
+  return votes;
+}
+
+function rememberVotes(votes) {
+  storage.set(GALLERY_VOTES_KEY, Object.fromEntries([...votes].slice(-300)));
+}
+
+/**
+ * Wechselt zwischen den drei Hauptbereichen:
+ *   mission   - die Foto-Mission (die einzelnen Bildschirme)
+ *   gallery   - die oeffentliche Galerie
+ *   memories  - der private Bereich "Fuer Britta & Lutz"
+ * @param {'mission'|'gallery'|'memories'} view
+ */
+function setMainView(view) {
+  const isGallery = view === 'gallery';
+  const isMemories = view === 'memories';
+  const main = $('#hauptbereich');
+  const galleryNode = $('[data-public-gallery]');
+  const memoriesNode = $('[data-memories]');
+  // Ein Datenattribut statt mehrerer Klassen: So bleibt immer genau ein
+  // Bereich sichtbar, auch wenn spaeter noch einer dazukommt.
+  main.dataset.view = view;
+  galleryNode.hidden = !isGallery;
+  if (memoriesNode) memoriesNode.hidden = !isMemories;
+  for (const button of document.querySelectorAll('[data-view-tab]')) {
+    const active = button.dataset.viewTab === view;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  }
+  if (isMemories && memories) memories.focus();
+  if (isGallery) {
+    // Nur neu laden, wenn die Bildlinks abzulaufen drohen - sonst reicht das,
+    // was schon da ist, und die Galerie steht sofort.
+    if (galleryIsStale()) loadPublicGallery();
+    else renderPublicGallery();
+    $('#gallery-title').focus({ preventScroll: true });
+  }
+  window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+}
+
+/**
+ * Reihenfolge in der Galerie: Das Foto mit den meisten Herzen steht oben.
+ * Bei Gleichstand entscheidet, wer zuerst da war.
+ */
+function byLikes(a, b) {
+  return (
+    Number(b.likes_count || 0) - Number(a.likes_count || 0) ||
+    new Date(a.created_at || 0) - new Date(b.created_at || 0)
+  );
+}
+
+function categoryOf(row) {
+  return row.mission_category || 'Erinnerung';
+}
+
+/**
+ * Die Platzierungen je Kategorie: Foto-ID -> 1, 2 oder 3.
+ *
+ * Gezaehlt wird ueber ALLE Fotos einer Kategorie, unabhaengig davon, was
+ * gerade gefiltert ist - der Platz bleibt also derselbe, egal wie man schaut.
+ * Fotos ohne Herz bekommen keinen Platz, und bei Gleichstand teilen sich
+ * mehrere Fotos denselben Platz.
+ */
+function galleryRanks() {
+  const proKategorie = new Map();
+  for (const row of gallery.rows) {
+    const kategorie = categoryOf(row);
+    if (!proKategorie.has(kategorie)) proKategorie.set(kategorie, []);
+    proKategorie.get(kategorie).push(row);
+  }
+
+  const ranks = new Map();
+  for (const rows of proKategorie.values()) {
+    const sortiert = [...rows].sort(byLikes);
+    let platz = 0;
+    let vorherigeHerzen = null;
+    sortiert.forEach((row, index) => {
+      const herzen = Number(row.likes_count || 0);
+      if (herzen <= 0) return; // Ohne Herz gibt es keinen Platz.
+      // Gleichstand: derselbe Platz. Sonst zaehlt die Position.
+      platz = herzen === vorherigeHerzen ? platz : index + 1;
+      vorherigeHerzen = herzen;
+      if (platz <= 3) ranks.set(row.id, platz);
+    });
+  }
+  return ranks;
+}
+
+/**
+ * Baut die Gruppen, die gerade angezeigt werden.
+ *
+ * Ohne Auswahl einer Aufgabe wird nach Kategorie gruppiert - passend dazu,
+ * dass es je Kategorie ein Herz und eine eigene Platzierung gibt. Ist eine
+ * einzelne Aufgabe gewaehlt, gibt es genau eine Gruppe dafuer.
+ *
+ * @returns {Array<{key: string, title: string, badge: string, rows: Array}>}
+ */
+function galleryGroups() {
+  const kategorie = gallery.category;
+  const mission = $('[data-public-gallery-mission]').value;
+
+  const rows = gallery.rows.filter(
+    (row) =>
+      (!kategorie || categoryOf(row) === kategorie) && (!mission || row.mission_id === mission),
+  );
+
+  if (mission) {
+    const titel = rows.length > 0 ? rows[0].mission_title : missionTitleById(mission);
+    return rows.length === 0
+      ? []
+      : [
+          {
+            key: mission,
+            title: titel || 'Aufgabe',
+            badge: categoryOf(rows[0]),
+            rows: [...rows].sort(byLikes),
+          },
+        ];
+  }
+
+  const gruppen = new Map();
+  for (const row of rows) {
+    const name = categoryOf(row);
+    if (!gruppen.has(name)) gruppen.set(name, []);
+    gruppen.get(name).push(row);
+  }
+
+  return [...gruppen.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+    .map(([name, eintraege]) => ({
+      key: name,
+      title: name,
+      badge: '',
+      rows: eintraege.sort(byLikes),
+    }));
+}
+
+/** Der Titel einer Aufgabe aus der Konfiguration. */
+function missionTitleById(id) {
+  const mission = config.missions.concat(config.bonusMissions).find((m) => m.id === id);
+  return mission ? renderMission(mission, templateValues).title : '';
+}
+
+/** Alle gerade sichtbaren Fotos, in genau der Reihenfolge der Anzeige. */
+function galleryRowsForView() {
+  return galleryGroups().flatMap((gruppe) => gruppe.rows);
+}
+
+/** Beschriftung des Herz-Knopfes, passend zum aktuellen Zustand. */
+function likeLabel(row, liked) {
+  const category = row.mission_category || 'dieser Kategorie';
+  return liked
+    ? `Herz wieder wegnehmen (${category})`
+    : `Diesem Foto das Herz für ${category} geben`;
+}
+
+/**
+ * Herz vergeben, wegnehmen oder innerhalb der Kategorie umsetzen.
+ * Die Regel "ein Herz je Kategorie" setzt die Datenbank durch.
+ */
+async function toggleLike(row, button) {
+  if (!supabaseReady || button.disabled) return;
+  const errorNode = $('[data-public-gallery-error]');
+  button.disabled = true;
+  try {
+    const result = await supabase.togglePhotoVote(row.id, device.deviceId);
+    showError(errorNode, null);
+    row.likes_count = result.likesCount;
+    if (result.liked) {
+      gallery.votes.set(row.id, result.category || row.mission_category || '');
+    } else {
+      gallery.votes.delete(row.id);
+    }
+
+    // Ist das Herz aus derselben Kategorie umgezogen, muss die alte Karte mit.
+    if (result.movedFrom) {
+      gallery.votes.delete(result.movedFrom);
+      const previous = gallery.rows.find((entry) => entry.id === result.movedFrom);
+      if (previous && result.movedFromLikesCount != null) {
+        previous.likes_count = result.movedFromLikesCount;
+      }
+    }
+
+    rememberVotes(gallery.votes);
+    sound.tap();
+    vibrate(8);
+
+    // Die Galerie ordnet sich sofort neu: Das Foto mit den meisten Herzen
+    // steht oben, und die Plaetze 1 bis 3 stimmen wieder.
+    renderPublicGallery();
+    refreshLightboxLike();
+    // Nach dem Neuaufbau zurueck auf denselben Knopf, damit die Bedienung
+    // per Tastatur nicht abreisst.
+    const karte = gallery.cards.get(row.id);
+    if (karte && karte.button && document.activeElement === document.body) {
+      karte.button.focus({ preventScroll: true });
+    }
+
+    const platz = galleryRanks().get(row.id);
+    announce(
+      live,
+      result.liked
+        ? `${result.movedFrom ? `Dein Herz für ${result.category} ist zu diesem Foto umgezogen.` : 'Herz vergeben.'}` +
+            (platz ? ` Dieses Foto steht jetzt auf Platz ${platz} in der Kategorie ${result.category}.` : '')
+        : 'Herz wieder weggenommen.',
+    );
+  } catch (error) {
+    showError(errorNode, describeError(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// -------------------------------------------------------------------------
+// Foto in voller Groesse
+// -------------------------------------------------------------------------
+
+/** Das gerade gross gezeigte Foto (oder null). */
+function photoViewRow() {
+  return gallery.viewRows[gallery.viewIndex] || null;
+}
+
+/** Herz-Knopf im Vollbild auf den neuesten Stand bringen. */
+function refreshLightboxLike() {
+  const row = photoViewRow();
+  const button = $('[data-lightbox-like]');
+  if (!row || !button) return;
+  const liked = gallery.votes.has(row.id);
+  clear(button);
+  button.classList.toggle('is-liked', liked);
+  button.setAttribute('aria-pressed', String(liked));
+  button.setAttribute('aria-label', likeLabel(row, liked));
+  button.disabled = !supabaseReady;
+  button.appendChild(createIcon('heart', { size: 18 }));
+  button.appendChild(el('span', { text: String(Number(row.likes_count || 0)) }));
+}
+
+function renderPhotoView() {
+  const row = photoViewRow();
+  if (!row) return;
+
+  const image = $('[data-lightbox-image]');
+  image.src = gallery.urls.get(row.storage_path) || '';
+  image.alt = `Foto von ${row.guest_name || 'einem Gast'} zur Mission ${row.mission_title || ''}`;
+
+  setText('[data-lightbox-name]', row.guest_name || 'Ohne Namen');
+  setText(
+    '[data-lightbox-meta]',
+    [row.mission_title, row.mission_category].filter(Boolean).join(' · '),
+  );
+  setText('[data-lightbox-position]', `${gallery.viewIndex + 1} von ${gallery.viewRows.length}`);
+
+  // Bei einem einzigen Foto braucht niemand Blätterpfeile.
+  const single = gallery.viewRows.length < 2;
+  $('[data-lightbox-prev]').hidden = single;
+  $('[data-lightbox-next]').hidden = single;
+
+  refreshLightboxLike();
+}
+
+/**
+ * Oeffnet ein Foto in voller Groesse. Geblaettert wird genau in der
+ * Reihenfolge, die gerade in der Galerie zu sehen ist.
+ */
+function openPhotoView(id) {
+  // Nur Fotos, deren Bild wirklich da ist - sonst zeigt das Vollbild nichts.
+  const rows = galleryRowsForView().filter((row) => gallery.urls.has(row.storage_path));
+  const index = rows.findIndex((row) => row.id === id);
+  if (index < 0) return;
+
+  gallery.viewRows = rows;
+  gallery.viewIndex = index;
+
+  const box = $('[data-lightbox]');
+  box.classList.add('is-open');
+  // Die Seite dahinter soll nicht mitscrollen.
+  document.body.style.overflow = 'hidden';
+  gallery.releaseTrap = trapFocus(box);
+  renderPhotoView();
+  $('[data-lightbox-close]').focus();
+  sound.tap();
+}
+
+function closePhotoView() {
+  const box = $('[data-lightbox]');
+  if (!box.classList.contains('is-open')) return;
+  box.classList.remove('is-open');
+  document.body.style.overflow = '';
+  if (gallery.releaseTrap) {
+    gallery.releaseTrap();
+    gallery.releaseTrap = null;
+  }
+
+  // Zurueck auf die Kachel, von der aus geoeffnet wurde.
+  const row = photoViewRow();
+  gallery.viewIndex = -1;
+  const card = row ? gallery.cards.get(row.id) : null;
+  if (card && card.opener) card.opener.focus({ preventScroll: true });
+}
+
+function stepPhotoView(delta) {
+  const count = gallery.viewRows.length;
+  if (count < 2) return;
+  gallery.viewIndex = (gallery.viewIndex + delta + count) % count;
+  renderPhotoView();
+}
+
+/**
+ * Eine einzelne Fotokachel.
+ * @param {object} row
+ * @param {number|undefined} rank  Platz 1-3 in seiner Kategorie
+ */
+function renderPhotoCard(row, rank) {
+  const card = el('article', { className: 'public-photo' });
+  if (rank) card.classList.add(`public-photo--rank${rank}`);
+  const url = gallery.urls.get(row.storage_path);
+
+  let opener = null;
+  if (url) {
+    const image = el('img', {
+      className: 'public-photo__image',
+      attrs: { src: url, alt: '', loading: 'lazy' },
+    });
+    // Das Bild sitzt in einem Knopf: Tippen zeigt es in voller Groesse.
+    opener = el('button', {
+      className: 'public-photo__open',
+      attrs: {
+        type: 'button',
+        'aria-label': `Foto von ${row.guest_name || 'einem Gast'} zur Aufgabe ${
+          row.mission_title || ''
+        } groß ansehen`,
+      },
+    });
+    opener.appendChild(image);
+    opener.addEventListener('click', () => openPhotoView(row.id));
+
+    // Laedt das Bild nicht (abgelaufener Link, Funkloch), bleibt keine
+    // kaputte Grafik stehen, sondern ein ruhiger Platzhalter.
+    image.addEventListener('error', () => {
+      opener.replaceWith(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+    });
+    card.appendChild(opener);
+  } else {
+    card.appendChild(el('div', { className: 'public-photo__missing', text: 'Bild lädt nicht' }));
+  }
+
+  // Platz 1 bis 3 einer Kategorie werden sichtbar ausgezeichnet.
+  if (rank) {
+    card.appendChild(el('span', { className: 'public-photo__rank', text: `Platz ${rank}` }));
+  }
+
+  const body = el('div', { className: 'public-photo__body' });
+  body.appendChild(el('p', { className: 'public-photo__name', text: row.guest_name || 'Ohne Namen' }));
+  body.appendChild(
+    el('p', { className: 'public-photo__mission', text: row.mission_title || 'Foto-Mission' }),
+  );
+
+  const footer = el('div', { className: 'public-photo__footer' });
+  footer.appendChild(el('span', { className: 'public-photo__category', text: categoryOf(row) }));
+
+  const liked = gallery.votes.has(row.id);
+  const like = el('button', {
+    className: `btn btn--secondary public-photo__like${liked ? ' is-liked' : ''}`,
+    attrs: {
+      type: 'button',
+      'aria-pressed': String(liked),
+      'aria-label': likeLabel(row, liked),
+    },
+  });
+  like.appendChild(createIcon('heart', { size: 18 }));
+  const countNode = el('span', { text: String(Number(row.likes_count || 0)) });
+  like.appendChild(countNode);
+  like.disabled = !supabaseReady;
+  like.addEventListener('click', () => toggleLike(row, like));
+
+  gallery.cards.set(row.id, { row, button: like, countNode, opener });
+  footer.appendChild(like);
+  body.appendChild(footer);
+  card.appendChild(body);
+  return card;
+}
+
+/** "1 Foto" statt "1 Fotos". */
+function fotoAnzahl(n) {
+  return n === 1 ? '1 Foto' : `${n} Fotos`;
+}
+
+/**
+ * Die Kategorie-Knoepfe mit Anzahl ("Alle 79", "Momente 4").
+ * Sie ersetzen das alte Auswahlfeld und zeigen auf einen Blick,
+ * wo ueberhaupt etwas zu sehen ist.
+ */
+function renderGalleryPills() {
+  const host = $('[data-gallery-pills]');
+  clear(host);
+
+  const proKategorie = new Map();
+  for (const row of gallery.rows) {
+    const name = categoryOf(row);
+    proKategorie.set(name, (proKategorie.get(name) || 0) + 1);
+  }
+
+  const eintraege = [
+    { value: '', label: 'Alle', count: gallery.rows.length },
+    ...[...proKategorie.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+      .map(([name, count]) => ({ value: name, label: name, count })),
+  ];
+
+  for (const eintrag of eintraege) {
+    const aktiv = gallery.category === eintrag.value;
+    const pill = el('button', {
+      className: `gallery-pill${aktiv ? ' is-active' : ''}`,
+      attrs: { type: 'button', 'aria-pressed': String(aktiv) },
+      text: eintrag.label,
+    });
+    pill.appendChild(el('span', { className: 'gallery-pill__count', text: String(eintrag.count) }));
+    pill.addEventListener('click', () => {
+      gallery.category = eintrag.value;
+      // Eine neue Kategorie heisst: erst einmal alle Aufgaben darin zeigen.
+      // Bliebe die alte Aufgabe stehen, waeren Zaehler und Anzeige uneinig.
+      $('[data-public-gallery-mission]').value = '';
+      sound.tap();
+      renderPublicGallery();
+    });
+    host.appendChild(pill);
+  }
+}
+
+/** Die Auswahl "Einzelne Aufgabe" - nur Aufgaben, zu denen es Fotos gibt. */
+function renderGalleryMissions() {
+  const select = $('[data-public-gallery-mission]');
+  const bisher = select.value;
+
+  const aufgaben = new Map();
+  for (const row of gallery.rows) {
+    if (!row.mission_id) continue;
+    if (gallery.category && categoryOf(row) !== gallery.category) continue;
+    if (!aufgaben.has(row.mission_id)) {
+      aufgaben.set(row.mission_id, { title: row.mission_title || 'Aufgabe', count: 0 });
+    }
+    aufgaben.get(row.mission_id).count += 1;
+  }
+
+  clear(select);
+  select.appendChild(el('option', { attrs: { value: '' }, text: 'Alle Aufgaben' }));
+  for (const [id, eintrag] of [...aufgaben.entries()].sort((a, b) =>
+    a[1].title.localeCompare(b[1].title, 'de'),
+  )) {
+    select.appendChild(
+      el('option', {
+        attrs: { value: id },
+        text: `${eintrag.title} (${eintrag.count})`,
+      }),
+    );
+  }
+  // Die vorherige Auswahl beibehalten, falls es sie noch gibt.
+  select.value = aufgaben.has(bisher) ? bisher : '';
+}
+
+function renderPublicGallery() {
+  const host = $('[data-public-gallery-groups]');
+  const empty = $('[data-public-gallery-empty]');
+  clear(host);
+  gallery.cards.clear();
+
+  renderGalleryPills();
+  renderGalleryMissions();
+
+  const gruppen = galleryGroups();
+  const ranks = galleryRanks();
+  empty.hidden = gruppen.length !== 0;
+
+  for (const gruppe of gruppen) {
+    const abschnitt = el('section', { className: 'gallery-group' });
+
+    const kopf = el('div', { className: 'gallery-group__head' });
+    kopf.appendChild(el('h2', { className: 'gallery-group__title', text: gruppe.title }));
+    const meta = el('div', { className: 'gallery-group__meta' });
+    if (gruppe.badge) {
+      meta.appendChild(el('span', { className: 'tag tag--gold', text: gruppe.badge }));
+    }
+    meta.appendChild(el('span', { className: 'hint', text: fotoAnzahl(gruppe.rows.length) }));
+    kopf.appendChild(meta);
+    abschnitt.appendChild(kopf);
+
+    const grid = el('div', { className: 'public-gallery__grid' });
+    for (const row of gruppe.rows) {
+      grid.appendChild(renderPhotoCard(row, ranks.get(row.id)));
+    }
+    abschnitt.appendChild(grid);
+    host.appendChild(abschnitt);
+  }
+}
+
+/** Kurzform der vergebenen Herzen, um zwei Staende zu vergleichen. */
+function voteFingerprint(votes) {
+  return [...(votes || new Map()).entries()]
+    .map(([id, kategorie]) => `${id}:${kategorie}`)
+    .sort()
+    .join('|');
+}
+
+/**
+ * Sind die signierten Bildlinks noch frisch genug?
+ * Sie laufen nach config.supabase.signedUrlTtlSeconds ab; deshalb wird die
+ * Galerie schon vor Ablauf neu geladen, statt leere Kacheln zu zeigen.
+ */
+function galleryIsStale() {
+  if (!gallery.loaded) return true;
+  const ttl = Number(config.supabase.signedUrlTtlSeconds) || 600;
+  return Date.now() - gallery.loadedAt > Math.max(30, ttl * 0.5) * 1000;
+}
+
+async function loadPublicGallery() {
+  if (gallery.loading || !supabaseReady) {
+    if (!supabaseReady) $('[data-public-gallery-empty]').hidden = false;
+    return;
+  }
+  gallery.loading = true;
+  const errorNode = $('[data-public-gallery-error]');
+  showError(errorNode, null);
+
+  // Beim allerersten Laden steht noch nichts auf der Seite. Dann zeigt der
+  // Platzhalter, dass etwas kommt - sonst wirkt die Galerie faelschlich leer.
+  const platzhalter = $('[data-public-gallery-loading]');
+  const ersteLadung = !gallery.loaded;
+  if (ersteLadung && platzhalter) {
+    platzhalter.hidden = false;
+    $('[data-public-gallery-empty]').hidden = true;
+  }
+
+  try {
+    gallery.rows = await supabase.listPublicSubmissions();
+
+    // Die Bilddateien liegen in einem privaten Speicher. Fuer die Galerie
+    // werden daraus kurzlebige Links erzeugt.
+    gallery.urls = await supabase.createSignedUrls(
+      gallery.rows.map((row) => row.storage_path),
+      config.supabase.signedUrlTtlSeconds,
+    );
+
+    // Ab hier ist alles da, was die Galerie zum Anzeigen braucht. Sie wird
+    // sofort aufgebaut - mit den gemerkten Herzen dieses Geraets. Auf die
+    // Nachfrage bei der Datenbank zu warten, waere bei schlechtem Netz eine
+    // unnoetige weitere Wartezeit vor dem ersten Bild.
+    gallery.loaded = true;
+    gallery.loadedAt = Date.now();
+    if (platzhalter) platzhalter.hidden = true;
+    renderPublicGallery();
+
+    // Welche Herzen hat dieses Geraet schon vergeben? Die Datenbank weiss es
+    // genauer als der Browser-Speicher - schlaegt sie fehl, bleibt der
+    // gemerkte Stand stehen.
+    try {
+      const vorher = voteFingerprint(gallery.votes);
+      gallery.votes = await supabase.listMyVotes(device.deviceId);
+      rememberVotes(gallery.votes);
+      // Nur neu zeichnen, wenn wirklich etwas anderes herauskam. Sonst
+      // wuerde die Galerie ohne Grund unter den Fingern neu aufgebaut.
+      if (voteFingerprint(gallery.votes) !== vorher) renderPublicGallery();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn('Die vergebenen Herzen konnten nicht gelesen werden.', error);
+      if (gallery.votes.size === 0) gallery.votes = storedVotes();
+    }
+
+    // Fehlende Bildlinks sind der haeufigste Stolperstein (die Leseregel fuer
+    // den Speicher fehlt in Supabase). Frueher blieben die Kacheln einfach
+    // leer - jetzt sagt die Seite es deutlich.
+    const missing = gallery.rows.filter((row) => !gallery.urls.has(row.storage_path));
+    if (missing.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Für ${missing.length} von ${gallery.rows.length} Fotos gibt es keinen Bildlink. ` +
+          'Meist fehlt in Supabase die Speicher-Leseregel "Galerie darf Feierfotos ansehen" – ' +
+          'dann hilft es, supabase/setup.sql noch einmal vollständig auszuführen.',
+      );
+      showError(
+        errorNode,
+        missing.length === gallery.rows.length
+          ? 'Die Bilder lassen sich gerade nicht anzeigen. Bitte lade die Seite neu – ' +
+              'wenn es dann immer noch fehlt, sag kurz dem Gastgeber Bescheid.'
+          : `${missing.length} von ${gallery.rows.length} Bildern lassen sich gerade nicht anzeigen.`,
+      );
+    }
+  } catch (error) {
+    showError(errorNode, describeError(error));
+  } finally {
+    gallery.loading = false;
+    if (platzhalter) platzhalter.hidden = true;
+    // Ging etwas schief, steht die Fehlermeldung da. Dann waere zusaetzlich
+    // "Noch sind keine Fotos" nur verwirrend.
+    if (!gallery.loaded) $('[data-public-gallery-empty]').hidden = true;
+  }
+}
+
+/**
+ * Laedt die Galerie einmal still im Hintergrund vor, kurz nachdem die Seite
+ * steht. Wer spaeter auf "Galerie" tippt, sieht sie dann sofort.
+ *
+ * Bewusst zurueckhaltend:
+ *   - erst wenn der Browser Ruhe hat (requestIdleCallback), spaetestens nach
+ *     eineinhalb Sekunden
+ *   - nur ein einziges Mal, kein Nachladen im Hintergrund
+ *   - nur die Liste und die Bildlinks; die Fotos selbst holt der Browser
+ *     weiterhin erst, wenn die Galerie wirklich sichtbar ist
+ *   - nicht, wenn das Geraet gerade offline ist
+ */
+function preloadPublicGallery() {
+  if (!supabaseReady) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  let gestartet = false;
+  const starten = () => {
+    if (gestartet) return;
+    gestartet = true;
+    // Ein Fehler hier darf nichts weiter ausloesen: Wer die Galerie oeffnet,
+    // laedt sie ohnehin erneut.
+    loadPublicGallery().catch(() => {});
+  };
+
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(starten, { timeout: 1500 });
+  } else {
+    window.setTimeout(starten, 1500);
+  }
 }
 
 // -------------------------------------------------------------------------
@@ -207,8 +891,21 @@ function fireConfetti() {
 // Missionen
 // -------------------------------------------------------------------------
 
+/**
+ * Aus welchem Topf wird gezogen?
+ *  regular / extra -> die regulaeren Missionen
+ *  bonus           -> die Bonus-Missionen
+ * Freiwillige Extra-Missionen laufen bewusst ueber denselben Topf wie die
+ * regulaeren - so bleiben die Aufgaben vertraut, und "schon gezogen" wird
+ * weiterhin beruecksichtigt.
+ */
 function missionPool(kind) {
   return kind === 'bonus' ? config.bonusMissions : config.missions;
+}
+
+/** Gibt es ueberhaupt noch eine Bonus-Mission zum Ziehen? */
+function hasBonusMissions() {
+  return config.bonusMissions.some((mission) => mission.active !== false);
 }
 
 function renderMissionCard(mission) {
@@ -226,6 +923,9 @@ function renderMissionCard(mission) {
   }
   if (run.missionKind === 'bonus') {
     meta.appendChild(el('span', { className: 'tag tag--bonus', text: 'Bonus' }));
+  }
+  if (run.missionKind === 'extra') {
+    meta.appendChild(el('span', { className: 'tag tag--bonus', text: 'Freiwillig' }));
   }
   if (testMode) {
     meta.appendChild(el('span', { className: 'tag tag--test', text: 'Test' }));
@@ -503,7 +1203,7 @@ async function startUpload() {
 
   if (!consent.checked) {
     consentError.textContent =
-      'Bitte bestätige kurz, dass dein Foto ins private Album darf.';
+      'Bitte bestätige kurz, dass dein Foto ins Album und in die Galerie darf.';
     consent.focus();
     sound.error();
     announce(live, consentError.textContent);
@@ -640,6 +1340,9 @@ async function startUpload() {
     storage.remove(PENDING_KEY);
     await clearPending();
 
+    // Die Galerie hat jetzt ein Foto mehr - beim naechsten Öffnen neu laden.
+    gallery.loaded = false;
+
     showSuccess(result.duplicate);
   } catch (error) {
     window.clearTimeout(slowTimer);
@@ -668,9 +1371,17 @@ function showSuccess(wasDuplicate) {
   setText('[data-success-mission]', rendered.title);
 
   const allowance = missionAllowance(device, config.limits, testMode);
+  const nextMissionButton = $('[data-next-mission]');
   const bonusButton = $('[data-bonus-button]');
-  bonusButton.hidden = !(allowance.canBonus && config.bonusMissions.some((m) => m.active !== false));
+  const extraButton = $('[data-extra-mission]');
+  const doneButton = $('[data-done-button]');
+  nextMissionButton.hidden = !allowance.canRegular;
+  bonusButton.hidden = !(allowance.canBonus && hasBonusMissions());
+  // Pflicht- und Bonus-Mission erledigt? Dann geht es freiwillig weiter.
+  extraButton.hidden = allowance.canRegular || allowance.canBonus || !allowance.canExtra;
+  doneButton.hidden = allowance.canRegular || allowance.canBonus;
 
+  showMemoriesHint();
   showScreen('success');
   fireConfetti();
   announce(
@@ -700,12 +1411,9 @@ function showFinished() {
   if (hasCompleted) {
     for (const entry of completed) {
       const row = el('div', { className: 'summary__row' });
-      row.appendChild(
-        el('span', {
-          className: 'summary__key',
-          text: entry.kind === 'bonus' ? 'Bonus' : 'Mission',
-        }),
-      );
+      const kindLabel =
+        entry.kind === 'bonus' ? 'Bonus' : entry.kind === 'extra' ? 'Freiwillig' : 'Mission';
+      row.appendChild(el('span', { className: 'summary__key', text: kindLabel }));
       row.appendChild(el('span', { className: 'summary__value', text: entry.missionTitle || '–' }));
       summary.appendChild(row);
     }
@@ -715,8 +1423,12 @@ function showFinished() {
   }
 
   const bonusButton = $('[data-finished-bonus]');
-  bonusButton.hidden = !(allowance.canBonus && config.bonusMissions.some((m) => m.active !== false));
+  bonusButton.hidden = !(allowance.canBonus && hasBonusMissions());
+  // Wer schon alles erledigt hat, darf trotzdem weitermachen.
+  $('[data-finished-extra]').hidden =
+    allowance.canRegular || allowance.canBonus || !allowance.canExtra;
 
+  showMemoriesHint();
   showScreen('finished');
 }
 
@@ -764,6 +1476,47 @@ async function restorePendingPhoto() {
 }
 
 // -------------------------------------------------------------------------
+// Privater Bereich "Fuer Britta & Lutz"
+// -------------------------------------------------------------------------
+
+/**
+ * Baut den privaten Bereich auf - oder blendet ihn samt Menuepunkt aus,
+ * wenn er in der Konfiguration abgeschaltet ist.
+ */
+function setupMemories() {
+  const tab = $('[data-memories-tab]');
+  const section = $('[data-memories]');
+  if (!config.memories || config.memories.enabled === false) {
+    if (tab) tab.remove();
+    if (section) section.remove();
+    for (const hinweis of document.querySelectorAll('[data-memories-hint], [data-memories-hint-2]')) {
+      hinweis.remove();
+    }
+    return;
+  }
+
+  if (tab && config.memories.tabLabel) tab.textContent = config.memories.tabLabel;
+
+  memories = initMemories({
+    config,
+    supabase,
+    supabaseReady,
+    live,
+    sound,
+    validateName,
+    showView: setMainView,
+  });
+}
+
+/** Blendet den Hinweis auf den privaten Bereich ein. */
+function showMemoriesHint() {
+  if (!memories) return;
+  for (const hinweis of document.querySelectorAll('[data-memories-hint], [data-memories-hint-2]')) {
+    hinweis.hidden = false;
+  }
+}
+
+// -------------------------------------------------------------------------
 // Testmodus
 // -------------------------------------------------------------------------
 
@@ -806,6 +1559,71 @@ function bindEvents() {
     document.removeEventListener('pointerdown', unlockOnce);
   };
   document.addEventListener('pointerdown', unlockOnce, { once: true });
+
+  for (const button of document.querySelectorAll('[data-view-tab]')) {
+    button.addEventListener('click', () => setMainView(button.dataset.viewTab));
+  }
+  $('[data-public-gallery-mission]').addEventListener('change', renderPublicGallery);
+
+  // ---- Foto in voller Groesse ----
+  const lightbox = $('[data-lightbox]');
+  $('[data-lightbox-close]').addEventListener('click', closePhotoView);
+  $('[data-lightbox-prev]').addEventListener('click', () => stepPhotoView(-1));
+  $('[data-lightbox-next]').addEventListener('click', () => stepPhotoView(1));
+  $('[data-lightbox-like]').addEventListener('click', (event) => {
+    const row = photoViewRow();
+    if (row) toggleLike(row, event.currentTarget);
+  });
+
+  // Tippen neben das Foto schliesst das Vollbild.
+  lightbox.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target === lightbox || target.hasAttribute('data-lightbox-stage')) closePhotoView();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (!lightbox.classList.contains('is-open')) return;
+    if (event.key === 'Escape') closePhotoView();
+    else if (event.key === 'ArrowLeft') stepPhotoView(-1);
+    else if (event.key === 'ArrowRight') stepPhotoView(1);
+  });
+
+  // Wischen zum Blättern - auf dem Handy die naheliegendste Geste.
+  const stage = $('[data-lightbox-stage]');
+  let swipeX = 0;
+  let swipeY = 0;
+  stage.addEventListener(
+    'touchstart',
+    (event) => {
+      const touch = event.changedTouches[0];
+      swipeX = touch.clientX;
+      swipeY = touch.clientY;
+    },
+    { passive: true },
+  );
+  stage.addEventListener(
+    'touchend',
+    (event) => {
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - swipeX;
+      const dy = touch.clientY - swipeY;
+      // Nur eindeutig waagerechte Bewegungen zaehlen als Wisch.
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepPhotoView(dx < 0 ? 1 : -1);
+    },
+    { passive: true },
+  );
+
+  // Symbole in die Knöpfe setzen
+  $('[data-lightbox-close]').appendChild(createIcon('x', { size: 20 }));
+  $('[data-lightbox-prev]').appendChild(createIcon('chevronLeft', { size: 22 }));
+  $('[data-lightbox-next]').appendChild(createIcon('chevronRight', { size: 22 }));
+
+  const privacyDialog = $('[data-privacy-dialog]');
+  $('[data-privacy-open]').addEventListener('click', () => privacyDialog.showModal());
+  $('[data-privacy-close]').addEventListener('click', () => privacyDialog.close());
+  privacyDialog.addEventListener('click', (event) => {
+    if (event.target === privacyDialog) privacyDialog.close();
+  });
 
   $('[data-sound-toggle]').addEventListener('click', () => {
     sound.toggle();
@@ -902,6 +1720,12 @@ function bindEvents() {
   });
 
   // ---- Abschluss ----
+  $('[data-next-mission]').addEventListener('click', async () => {
+    sound.tap();
+    releasePreviewUrl();
+    run.photo = null;
+    await performDraw('regular');
+  });
   $('[data-bonus-button]').addEventListener('click', async () => {
     sound.tap();
     releasePreviewUrl();
@@ -919,6 +1743,23 @@ function bindEvents() {
     await performDraw('bonus');
   });
 
+  // ---- Freiwillig weitermachen oder in die Galerie ----
+  const drawExtra = async () => {
+    sound.tap();
+    releasePreviewUrl();
+    run.photo = null;
+    await performDraw('extra');
+  };
+  $('[data-extra-mission]').addEventListener('click', drawExtra);
+  $('[data-finished-extra]').addEventListener('click', drawExtra);
+
+  const openGallery = () => {
+    sound.tap();
+    setMainView('gallery');
+  };
+  $('[data-success-gallery]').addEventListener('click', openGallery);
+  $('[data-finished-gallery]').addEventListener('click', openGallery);
+
   // Beim Verlassen aufraeumen
   window.addEventListener('pagehide', releasePreviewUrl);
 }
@@ -929,8 +1770,14 @@ async function init() {
   applyBigNumber(config.party.age);
   applyTexts();
   refreshSoundButton();
+  // Gemerkte Herzen als erste Anzeige; die Datenbank korrigiert sie beim Laden.
+  gallery.votes = storedVotes();
+  setupMemories();
   setupTestMode();
   bindEvents();
+
+  // Die Galerie schon einmal still vorbereiten, waehrend der Gast noch liest.
+  preloadPublicGallery();
 
   // Startanimation ausblenden
   const boot = $('[data-boot]');

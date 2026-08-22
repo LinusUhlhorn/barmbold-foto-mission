@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Privates Party-Album</title>
-    <meta name="theme-color" content="#07060f" />
+    <title>Privates Silberhochzeits-Album</title>
+    <meta name="theme-color" content="#151719" />
     <meta name="color-scheme" content="dark" />
     <meta name="robots" content="noindex, nofollow, noarchive" />
     <meta name="referrer" content="no-referrer" />
     <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="../assets/css/base.css" />
-    <link rel="stylesheet" href="../assets/css/album.css" />
+    <link rel="stylesheet" href="../assets/css/base.css?v=0367b3c8" />
+    <link rel="stylesheet" href="../assets/css/album.css?v=f955ee2f" />
   </head>
   <body>
     <a class="skip-link" href="#album-inhalt">Zum Inhalt springen</a>
@@ -18,7 +18,7 @@
     <div class="backdrop" aria-hidden="true">
       <div class="backdrop__glow backdrop__glow--a"></div>
       <div class="backdrop__glow backdrop__glow--b"></div>
-      <div class="backdrop__number" data-big-number>30</div>
+      <div class="backdrop__number" data-big-number>25</div>
       <div class="backdrop__grain" data-grain></div>
     </div>
 
@@ -36,10 +36,10 @@
           </div>
 
           <p class="eyebrow">Privater Bereich</p>
-          <h1 class="headline headline--gradient">Party-Album</h1>
+          <h1 class="headline headline--gradient">Silberhochzeits-Album</h1>
           <p class="subline">
-            Dieser Bereich ist nur für dich. Melde dich mit deinem Supabase-Zugang an,
-            um alle Fotos des Abends zu sehen.
+            Dieser Bereich ist geschützt. Melde dich mit deinem Supabase-Zugang an,
+            um alle Erinnerungen an die Silberhochzeit zu sehen.
           </p>
 
           <form data-login-form novalidate>
@@ -85,10 +85,10 @@
       <main id="album-inhalt" data-view="album" hidden>
         <header class="album-header">
           <div>
-            <h1 class="album-header__title" data-album-title>Privates Party-Album</h1>
+            <h1 class="album-header__title" data-album-title>Privates Silberhochzeits-Album</h1>
             <p class="album-header__meta" data-album-meta></p>
           </div>
-          <div class="album-actions no-print">
+          <div class="album-actions no-print" data-admin-only>
             <div class="viewswitch" role="tablist" aria-label="Ansicht wählen">
               <button type="button" role="tab" aria-selected="true" data-view-button="grid">
                 Raster
@@ -99,8 +99,11 @@
               <button type="button" role="tab" aria-selected="false" data-view-button="sheet">
                 Kontaktbogen
               </button>
+              <button type="button" role="tab" aria-selected="false" data-view-button="memories">
+                Private Erinnerungen
+              </button>
             </div>
-            <button type="button" class="btn btn--small btn--secondary" data-slideshow>
+            <button type="button" class="btn btn--small btn--secondary" data-slideshow data-mission-only>
               Diashow
             </button>
             <button type="button" class="btn btn--small btn--secondary" data-reload>
@@ -136,7 +139,7 @@
               <option value="random">Zufällig</option>
             </select>
           </div>
-          <div class="field" style="grid-column: 1 / -1">
+          <div class="field" style="grid-column: 1 / -1" data-admin-only>
             <label class="checkbox" style="margin-top: 0">
               <input type="checkbox" data-filter-test />
               <span class="checkbox__text">Nur Testfotos anzeigen</span>
@@ -161,9 +164,38 @@
           <div class="contactsheet__grid" data-sheet-grid></div>
         </div>
 
+        <!-- Private Erinnerungen ("Für Britta & Lutz") -->
+        <section class="memories-admin" data-memories-view hidden aria-labelledby="memories-admin-title">
+          <div class="memories-admin__head">
+            <div>
+              <h2 class="album-header__title" id="memories-admin-title">Private Erinnerungen</h2>
+              <p class="album-header__meta" data-memories-admin-meta></p>
+            </div>
+            <div class="album-actions no-print">
+              <button type="button" class="btn btn--small btn--secondary" data-memories-reload>
+                Neu laden
+              </button>
+              <button type="button" class="btn btn--small btn--primary" data-memories-download-all>
+                Alle Erinnerungen herunterladen
+              </button>
+            </div>
+          </div>
+
+          <p class="hint memories-admin__note">
+            Diese Aufnahmen sind nicht öffentlich und erscheinen nirgends in der Galerie.
+            Sie werden ausschließlich über kurzlebige, signierte Links geladen.
+          </p>
+
+          <div class="notice notice--error" data-memories-admin-error hidden></div>
+          <div class="memories-admin__list" data-memories-admin-list></div>
+          <div class="empty" data-memories-admin-empty hidden>
+            Noch hat niemand eine private Erinnerung hochgeladen.
+          </div>
+        </section>
+
         <div class="empty" data-empty hidden></div>
 
-        <div class="selectbar no-print" data-selectbar hidden>
+        <div class="selectbar no-print" data-selectbar data-admin-only hidden>
           <span class="selectbar__count" data-select-count></span>
           <button type="button" class="btn btn--small btn--secondary" data-select-all>
             Alle auswählen
@@ -179,7 +211,7 @@
           </button>
         </div>
 
-        <div class="btn-row btn-row--inline no-print">
+        <div class="btn-row btn-row--inline no-print" data-admin-only data-mission-only>
           <button type="button" class="btn btn--secondary btn--small" data-download-all>
             Alle Fotos als ZIP
           </button>
@@ -193,8 +225,8 @@
 
         <footer class="footnote no-print">
           <p>
-            Die Bilder werden über kurzlebige, signierte Links geladen. Es gibt keine
-            dauerhaft öffentliche Adresse zu den Fotos.
+            Die Bilder werden nach der Einrichtung geschützt über kurzlebige,
+            signierte Links geladen. Es gibt keine dauerhaft öffentliche Bildadresse.
           </p>
         </footer>
       </main>
@@ -243,6 +275,29 @@
     </div>
 
     <!-- ==========================================================
+         VOLLBILD FÜR PRIVATE ERINNERUNGEN
+         ========================================================== -->
+    <div
+      class="lightbox"
+      data-memory-viewer
+      role="dialog"
+      aria-modal="true"
+      aria-label="Private Erinnerung in voller Größe"
+    >
+      <div class="lightbox__bar">
+        <span class="hint" data-memory-viewer-title></span>
+        <button type="button" class="btn btn--icon" data-memory-viewer-close>
+          <span class="visually-hidden">Vollbild schließen</span>
+        </button>
+      </div>
+      <div class="lightbox__stage" data-memory-viewer-stage></div>
+      <div class="lightbox__caption">
+        <strong data-memory-viewer-name></strong>
+        <span class="lightbox__meta" data-memory-viewer-meta></span>
+      </div>
+    </div>
+
+    <!-- ==========================================================
          SICHERHEITSABFRAGE
          ========================================================== -->
     <div class="dialog" data-dialog role="dialog" aria-modal="true" aria-labelledby="dialog-title">
@@ -271,6 +326,6 @@
       </div>
     </noscript>
 
-    <script type="module" src="../assets/js/album.js"></script>
+    <script type="module" src="../assets/js/album.js?v=c8fc6036"></script>
   </body>
 </html>

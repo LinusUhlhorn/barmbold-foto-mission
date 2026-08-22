@@ -13,6 +13,781 @@
   display: block;
 }
 
+/* Es ist immer genau ein Hauptbereich sichtbar. Die Bildschirme der
+   Foto-Mission verschwinden, sobald Galerie oder privater Bereich dran sind. */
+.shell__main[data-view='gallery'] [data-screen],
+.shell__main[data-view='memories'] [data-screen] {
+  display: none !important;
+}
+
+/* =========================================================================
+   BILDSCHIRME MIT FESTER AKTIONSLEISTE (Vorschau und Bestätigen)
+   =========================================================================
+   Auf dem Handy soll der wichtige Knopf ("Dieses Foto verwenden" bzw. der
+   Haken samt "Foto hochladen") IMMER sichtbar sein - auch wenn das Foto
+   hochkant ist und die Karte länger als der Bildschirm wird.
+
+   Dafür klebt der Aktionsbereich unten am Sichtfenster (position: sticky).
+   Wichtig: Die Karte darf dafür NICHT abgeschnitten werden (kein
+   overflow: hidden), sonst wirkt sticky nicht. Das obere Lichtband der Karte
+   wird deshalb weiter unten eigens zurechtgerückt.
+   ========================================================================= */
+
+.card--sheet {
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+/* Das Lichtband der Karte würde ohne Beschnitt an den Ecken überstehen. */
+.card--sheet::before {
+  left: var(--sp-5);
+  right: var(--sp-5);
+}
+
+.card__scroll {
+  /* Nichts Eigenes nötig - der Bereich wächst einfach mit dem Inhalt und
+     wird bei Bedarf mit der Seite gescrollt. */
+  padding-bottom: var(--sp-3);
+}
+
+.card__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  /* Bis an die Kanten der Karte ziehen, damit nichts seitlich durchscrollt. */
+  margin: var(--sp-3) calc(var(--sp-4) * -1) 0;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px solid var(--c-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  /* Vollständig deckend - der Inhalt scrollt darunter durch und darf nicht
+     durchscheinen. */
+  background: var(--c-bg);
+}
+
+/* Weicher Übergang: Der Inhalt verschwindet unter der Leiste, statt an einer
+   harten Kante abgeschnitten zu wirken. */
+.card__actions::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--sp-5);
+  background: linear-gradient(to top, var(--c-bg), transparent);
+  pointer-events: none;
+}
+
+/* Innerhalb der Aktionsleiste sitzen die Knöpfe dichter beieinander. */
+.card__actions .btn-row {
+  margin-top: 0;
+}
+
+/* Zwei Nebenknöpfe teilen sich eine Zeile, statt zwei Zeilen zu belegen. */
+.btn-row--tight {
+  flex-wrap: nowrap;
+  gap: var(--sp-2);
+}
+
+.btn-row--tight .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: var(--sp-3);
+  /* Etwas kleiner, damit die Beschriftung auch auf schmalen Handys
+     einzeilig bleibt. Die Mindesthöhe von 44px bleibt erhalten. */
+  font-size: 0.82rem;
+}
+
+.checkbox--tight {
+  margin-top: 0;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.checkbox--tight .checkbox__text {
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+/* Die Fehlermeldung unter dem Haken braucht nur Platz, wenn sie etwas sagt. */
+.card__actions .field__error:empty {
+  display: none;
+}
+
+.public-gallery {
+  width: min(100%, 58rem);
+  margin-inline: auto;
+}
+
+.gallery-heading {
+  margin-bottom: var(--sp-5);
+  text-align: center;
+}
+
+/* ---------- Kategorien als Knöpfe mit Anzahl ---------- */
+
+.gallery-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.gallery-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    background 0.2s var(--ease),
+    color 0.2s var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gallery-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gallery-pill.is-active {
+  color: #151719;
+  background: linear-gradient(112deg, #f5f1e9, var(--c-gold));
+  border-color: transparent;
+}
+
+/* Die Anzahl steht in einer eigenen kleinen Blase. */
+.gallery-pill__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.6rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.gallery-pill.is-active .gallery-pill__count {
+  background: rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Einzelne Aufgabe ---------- */
+
+.gallery-mission {
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.gallery-mission select {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: #16181a;
+  color: var(--c-text);
+  font-size: 16px;
+}
+
+/* ---------- Abschnitte je Kategorie ---------- */
+
+.gallery-group + .gallery-group {
+  margin-top: var(--sp-6);
+}
+
+.gallery-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.gallery-group__title {
+  font-family: var(--font-display, inherit);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.gallery-group__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.gallery-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+.gallery-filters .field {
+  margin-top: 0;
+}
+
+.gallery-filters select {
+  width: 100%;
+  min-height: 48px;
+  padding: var(--sp-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: #16181a;
+}
+
+.public-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+/* Ladeplatzhalter: ruhige, angedeutete Kacheln statt einer leeren Seite. */
+.gallery-loading__text {
+  margin: 0 0 var(--sp-3);
+  text-align: center;
+}
+
+.gallery-loading__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.gallery-loading__card {
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.04) 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.04) 70%
+  );
+  background-size: 300% 100%;
+  animation: gallery-loading-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes gallery-loading-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* Wer ruhige Darstellung eingestellt hat, bekommt keine Bewegung. */
+@media (prefers-reduced-motion: reduce) {
+  .gallery-loading__card {
+    animation: none;
+  }
+}
+
+.public-photo {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ---------- Platz 1 bis 3 einer Kategorie ---------- */
+/* Der Platz ergibt sich allein aus den Herzen und ändert sich live mit. */
+
+.public-photo__rank {
+  position: absolute;
+  top: var(--sp-2);
+  left: var(--sp-2);
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #151719;
+  background: linear-gradient(112deg, #f5f1e9, var(--c-gold));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.public-photo--rank1 {
+  border-color: var(--c-border-gold);
+  box-shadow: var(--shadow-soft), var(--shadow-glow);
+}
+
+.public-photo--rank2 .public-photo__rank {
+  background: linear-gradient(112deg, #eceff1, #b6bcc2);
+}
+
+.public-photo--rank3 .public-photo__rank {
+  background: linear-gradient(112deg, #e5cbb0, #b98f66);
+}
+
+.public-photo__image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Das Bild ist ein Knopf: Tippen öffnet es in voller Größe. */
+.public-photo__open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.public-photo__open:focus-visible {
+  outline: 3px solid var(--c-gold);
+  outline-offset: -3px;
+}
+
+/* Platzhalter, wenn ein Bild nicht geladen werden kann. Besser als ein
+   kaputtes Bildsymbol - und man sieht, dass das Foto trotzdem da ist. */
+.public-photo__missing {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: var(--sp-3);
+  text-align: center;
+  font-size: 0.74rem;
+  color: var(--c-text-muted);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.public-photo__body {
+  padding: var(--sp-3);
+}
+
+.public-photo__name {
+  font-weight: 700;
+}
+
+.public-photo__mission {
+  margin-top: 2px;
+  color: var(--c-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.public-photo__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.public-photo__category {
+  font-size: 0.7rem;
+  color: var(--c-gold-soft);
+}
+
+.public-photo__like {
+  width: auto;
+  min-height: 42px;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+/* Der zweite Selektor ist kein Versehen: Ohne ihn gewinnt die allgemeine
+   Hover-Regel von .btn--secondary, und ein vergebenes Herz stünde unter dem
+   Mauszeiger dunkel auf hellgrau da. */
+.public-photo__like.is-liked,
+.public-photo__like.is-liked:hover:not(:disabled) {
+  color: #151719;
+  background: var(--c-gold-soft);
+}
+
+@media (min-width: 42rem) {
+  .public-gallery__grid,
+  .gallery-loading__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* =========================================================================
+   FOTO IN VOLLER GRÖSSE
+   =========================================================================
+   Gleiche Bedienung wie im Album: blättern mit den Pfeilen, den Pfeiltasten
+   oder per Wisch, schließen mit Escape oder Tippen neben das Bild.
+   ========================================================================= */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: none;
+  flex-direction: column;
+  background: rgba(9, 10, 11, 0.97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding:
+    calc(env(safe-area-inset-top) + var(--sp-3)) var(--sp-3)
+    calc(env(safe-area-inset-bottom) + var(--sp-3));
+}
+
+.lightbox.is-open {
+  display: flex;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.lightbox__stage {
+  flex: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  /* Waagerechtes Wischen gehört uns, senkrechtes Scrollen dem Browser. */
+  touch-action: pan-y;
+}
+
+.lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  animation: lightbox-in 0.3s var(--ease) both;
+}
+
+@keyframes lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--touch);
+  height: var(--touch);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--c-border);
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--c-text);
+  cursor: pointer;
+}
+
+.lightbox__nav--prev {
+  left: 0;
+}
+
+.lightbox__nav--next {
+  right: 0;
+}
+
+.lightbox__caption {
+  margin-top: var(--sp-3);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.lightbox__caption strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
+}
+
+.lightbox__meta {
+  color: var(--c-text-muted);
+  font-size: 0.82rem;
+}
+
+.lightbox__tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.lightbox__tools .public-photo__like {
+  min-width: 6rem;
+}
+
+@media (max-width: 28rem) {
+  .gallery-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================================
+   PRIVATER BEREICH: "FÜR BRITTA & LUTZ"
+   =========================================================================
+   Große Flächen, deutliche Zähler, klare Trennung von Fotos und Videos -
+   der Bereich soll auch für technisch ungeübte Gäste am Handy einfach sein.
+   ========================================================================= */
+
+.memories {
+  width: min(100%, 40rem);
+  margin-inline: auto;
+}
+
+/* Der Hinweis, dass hier nichts öffentlich wird. Muss auffallen. */
+.private-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+  border: 1px solid var(--c-border-gold);
+  border-radius: var(--radius);
+  background: rgba(200, 204, 208, 0.1);
+  color: var(--c-gold-soft);
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+  justify-content: center;
+}
+
+.memories-message {
+  resize: vertical;
+  min-height: 5rem;
+  font-family: inherit;
+}
+
+/* ---------- Auswahlflächen ---------- */
+
+.dropbox {
+  padding: var(--sp-5) var(--sp-4);
+  margin-top: var(--sp-5);
+  border: 2px dashed var(--c-border);
+  border-radius: var(--radius-lg);
+  background: rgba(0, 0, 0, 0.22);
+  text-align: center;
+}
+
+.dropbox.is-full {
+  border-style: solid;
+  border-color: rgba(255, 178, 107, 0.45);
+}
+
+.dropbox__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.dropbox__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--c-border-gold);
+  color: var(--c-gold);
+}
+
+.dropbox__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Der Zähler ist die wichtigste Information in diesem Kasten. */
+.dropbox__counter {
+  margin: var(--sp-2) 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--c-gold-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.dropbox .hint {
+  margin-bottom: var(--sp-3);
+}
+
+.dropbox .btn {
+  margin-top: var(--sp-2);
+}
+
+.dropbox__full {
+  margin-top: var(--sp-3);
+  text-align: left;
+}
+
+.memories-error {
+  margin-top: var(--sp-4);
+  flex-direction: row;
+}
+
+.memories-error p + p {
+  margin-top: var(--sp-2);
+}
+
+/* ---------- Ausgewählte Dateien ---------- */
+
+.memory-group {
+  margin-top: var(--sp-5);
+}
+
+.memory-group__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  margin-bottom: var(--sp-3);
+}
+
+.memory-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.memory-item__preview {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--c-gold);
+}
+
+.memory-item__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.memory-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-item__name {
+  font-size: 0.9rem;
+  font-weight: 650;
+  /* Lange Dateinamen dürfen die Seite nicht seitlich hinausschieben. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.memory-item__meta {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  color: var(--c-text-muted);
+}
+
+.memory-item__remove {
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+
+/* Schon hochgeladene Dateien bleiben sichtbar, aber ruhig im Hintergrund. */
+.memory-item--stored {
+  opacity: 0.72;
+}
+
+.memory-item__stored {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  color: var(--c-success, #2e7d5b);
+}
+
+.memories-summary {
+  margin-top: var(--sp-5);
+  margin-bottom: 0;
+}
+
+.memories-summary .summary__key {
+  flex-basis: 8rem;
+}
+
+/* ---------- Fortschritt und Erfolg ---------- */
+
+.memories-progress,
+.memories-success {
+  margin-top: var(--sp-5);
+  text-align: center;
+}
+
+.memories-progress .progress {
+  margin-top: var(--sp-5);
+}
+
+.memories-progress .hint {
+  margin-top: var(--sp-3);
+  overflow-wrap: anywhere;
+}
+
+.memories-success .summary__row {
+  align-items: center;
+}
+
+.memories-success .summary__icon {
+  flex: 0 0 auto;
+  color: var(--c-success);
+  margin-right: var(--sp-2);
+}
+
+/* ---------- Hinweis am Ende der Foto-Mission ---------- */
+
+.memories-hint {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--c-border);
+}
+
+.memories-hint .btn {
+  margin-top: var(--sp-2);
+}
+
 @keyframes screen-in {
   from {
     opacity: 0;
@@ -65,8 +840,8 @@
 }
 
 .boot__blades polygon {
-  fill: rgba(233, 200, 119, 0.16);
-  stroke: rgba(233, 200, 119, 0.6);
+  fill: rgba(200, 204, 208, 0.16);
+  stroke: rgba(220, 224, 227, 0.6);
   stroke-width: 0.4;
   transform-origin: 50% 50%;
 }
@@ -245,7 +1020,7 @@
   background:
     repeating-linear-gradient(
       45deg,
-      rgba(233, 200, 119, 0.09) 0 8px,
+      rgba(200, 204, 208, 0.09) 0 8px,
       transparent 8px 16px
     ),
     linear-gradient(150deg, #241653, #140d33 60%, #1d1046);
@@ -256,12 +1031,12 @@
 }
 
 .deck__card::after {
-  content: '30';
+  content: '25';
   font-family: var(--font-display);
   font-size: 3.6rem;
   font-weight: 800;
   color: transparent;
-  -webkit-text-stroke: 1.5px rgba(233, 200, 119, 0.5);
+  -webkit-text-stroke: 1.5px rgba(220, 224, 227, 0.5);
   letter-spacing: -0.04em;
 }
 
@@ -335,7 +1110,7 @@
     100deg,
     transparent,
     rgba(246, 226, 176, 0.42),
-    rgba(192, 38, 211, 0.3),
+    rgba(169, 141, 108, 0.3),
     transparent
   );
   filter: blur(14px);
@@ -389,7 +1164,7 @@
   place-items: center;
   border-radius: 16px;
   color: var(--c-gold);
-  background: linear-gradient(150deg, rgba(233, 200, 119, 0.2), rgba(192, 38, 211, 0.14));
+  background: linear-gradient(150deg, rgba(220, 224, 227, 0.2), rgba(169, 141, 108, 0.14));
   border: 1px solid var(--c-border-gold);
 }
 
@@ -415,13 +1190,13 @@
 .tag--gold {
   color: var(--c-gold-soft);
   border-color: var(--c-border-gold);
-  background: rgba(233, 200, 119, 0.13);
+  background: rgba(200, 204, 208, 0.13);
 }
 
 .tag--bonus {
   color: #f0c2ff;
-  border-color: rgba(192, 38, 211, 0.5);
-  background: rgba(192, 38, 211, 0.18);
+  border-color: rgba(169, 141, 108, 0.5);
+  background: rgba(169, 141, 108, 0.18);
 }
 
 .tag--test {
@@ -509,12 +1284,22 @@
 }
 
 .preview__image {
-  width: 100%;
+  display: block;
+  /* width: auto zusammen mit den beiden Höchstwerten: Der Rahmen legt sich um
+     das Foto, statt bei Hochkant-Bildern breite schwarze Balken zu zeigen. */
+  width: auto;
+  max-width: 100%;
   height: auto;
-  max-height: 62svh;
-  object-fit: contain;
+  /* Bewusst knapp gehalten: So passen Foto UND Knopf auf einen Handy-Bildschirm. */
+  max-height: 46svh;
   margin: 0 auto;
   background: #000;
+}
+
+/* Auf dem Bestätigen-Bildschirm ist das Foto nur noch eine Erinnerung daran,
+   worum es geht - Haken und Hochladen sind wichtiger. */
+.preview__image--small {
+  max-height: 32svh;
 }
 
 .preview__facts {
@@ -583,7 +1368,7 @@
 
 .shutter-overlay__blades polygon {
   fill: rgba(6, 5, 14, 0.94);
-  stroke: rgba(233, 200, 119, 0.75);
+  stroke: rgba(220, 224, 227, 0.75);
   stroke-width: 0.4;
   transform-origin: 50% 50%;
 }
@@ -664,8 +1449,8 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(76, 29, 149, 0.42),
-    rgba(192, 38, 211, 0.22) 45%,
+    rgba(104, 111, 118, 0.42),
+    rgba(169, 141, 108, 0.22) 45%,
     rgba(4, 3, 10, 0.55)
   );
   mix-blend-mode: overlay;
@@ -860,7 +1645,11 @@
   }
 
   .preview__image {
-    max-height: 48svh;
+    max-height: 40svh;
+  }
+
+  .preview__image--small {
+    max-height: 28svh;
   }
 
   .polaroid {

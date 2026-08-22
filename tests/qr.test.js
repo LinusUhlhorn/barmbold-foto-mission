@@ -16,7 +16,7 @@ import {
 import { modulesToPath, qrToSvgString } from '../assets/js/lib/qr-render.js';
 import { PARTY_CONFIG } from '../config/party-config.js';
 
-const PUBLIC_URL = 'https://example.com/';
+const PUBLIC_URL = 'https://silberhochzeit-barmbold.ulhorn-webdesign.de/';
 
 // =========================================================================
 // Bekannte Werte aus der Norm ISO/IEC 18004

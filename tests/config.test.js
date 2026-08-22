@@ -41,22 +41,26 @@ test('Alle Hauptbereiche sind vorhanden', () => {
   }
 });
 
-test('Unbekannte persönliche Angaben stehen als erkennbarer Platzhalter drin', () => {
-  assert.equal(PARTY_CONFIG.party.birthdayPersonName, '[NAME DES GEBURTSTAGSKINDES]');
-  assert.equal(PARTY_CONFIG.party.partyTitle, '[TITEL DER FEIER]');
-  assert.equal(PARTY_CONFIG.party.partyDate, '[DATUM DER FEIER]');
+test('Die Feier ist für Britta und Lutz personalisiert', () => {
+  assert.equal(PARTY_CONFIG.party.birthdayPersonName, 'Britta & Lutz');
+  assert.match(PARTY_CONFIG.party.partyTitle, /Silberhochzeit/);
+  assert.match(PARTY_CONFIG.party.partyTitle, /Barmbold/);
+  assert.equal(PARTY_CONFIG.party.partyDate, '2026');
 });
 
-test('Die öffentliche Adresse ist ein neutraler Template-Wert', () => {
-  assert.equal(PARTY_CONFIG.party.publicUrl, 'https://example.com/');
+test('Die öffentliche Adresse ist die Silberhochzeits-Domain', () => {
+  assert.equal(
+    PARTY_CONFIG.party.publicUrl,
+    'https://silberhochzeit-barmbold.ulhorn-webdesign.de/',
+  );
 });
 
 test('Der optionale Absender ist im Template leer', () => {
   assert.equal(PARTY_CONFIG.party.giftedBy, '');
 });
 
-test('Das Template enthält ein gültiges Beispielalter', () => {
-  assert.equal(PARTY_CONFIG.party.age, 18);
+test('Die Jubilaeumszahl ist 25', () => {
+  assert.equal(PARTY_CONFIG.party.age, 25);
 });
 
 test('Alle Texte der Oberfläche sind gefüllt', () => {
@@ -83,7 +87,10 @@ test('Alle Texte der Oberfläche sind gefüllt', () => {
     'uploadingLabel',
     'successTitle',
     'successText',
+    'nextMissionButton',
     'bonusButton',
+    'extraMissionButton',
+    'galleryButton',
     'doneButton',
   ]) {
     assert.ok(PARTY_CONFIG.texts[key], `Pflichttext fehlt: ${key}`);
@@ -92,29 +99,41 @@ test('Alle Texte der Oberfläche sind gefüllt', () => {
 
 test('Platzhalter in den Texten werden korrekt ersetzt', () => {
   const values = { name: 'Alex', age: 42 };
-  const subline = fillTemplate(PARTY_CONFIG.texts.heroSubline, values);
-  assert.ok(subline.includes('Alex'));
-  assert.ok(!subline.includes('{name}'));
-  assert.ok(!fillTemplate(PARTY_CONFIG.texts.appTitle, values).includes('{age}'));
+  const title = fillTemplate(PARTY_CONFIG.texts.appTitle, values);
+  assert.ok(title.includes('42'));
+  assert.ok(!title.includes('{age}'));
 });
 
-test('Der Datenschutzhinweis hat genau den geforderten Inhalt', () => {
-  const { notice, consentLabel, peopleNotice } = PARTY_CONFIG.privacy;
-  assert.match(notice, /ausschließlich für das private Geburtstagsalbum gespeichert/);
-  assert.match(notice, /nicht öffentlich sichtbar/);
-  assert.match(notice, /nach der Feier gelöscht werden/);
-  assert.equal(
-    consentLabel,
-    'Ich bin damit einverstanden, dass dieses Foto im privaten Geburtstagsalbum gespeichert wird.',
-  );
+test('Der Datenschutzhinweis erklärt die öffentliche Galerie', () => {
+  const { notice, consentLabel, consentHint, peopleNotice } = PARTY_CONFIG.privacy;
+  assert.match(notice, /öffentlichen Galerie/);
+  assert.match(notice, /bewertet werden/);
+  assert.match(notice, /Administration gelöscht werden/);
   assert.match(peopleNotice, /abgebildeten Personen mit dem Foto einverstanden/);
+  assert.ok(consentHint.trim().length > 0, 'Der Zusatz unter dem Haken fehlt');
+});
+
+test('Der Haken vor dem Upload nennt Album, Galerie und die abgebildeten Personen', () => {
+  const { consentLabel } = PARTY_CONFIG.privacy;
+  assert.match(consentLabel, /Album/, 'Das Album fehlt im Einwilligungstext');
+  assert.match(consentLabel, /Galerie/, 'Die öffentliche Galerie fehlt im Einwilligungstext');
+  assert.match(
+    consentLabel,
+    /abgebildeten Personen sind einverstanden/,
+    'Das Einverständnis der abgebildeten Personen fehlt',
+  );
+  // Die Galerie ist öffentlich - "privates Album" wäre irreführend.
+  assert.ok(!/privaten? (Silberhochzeits-)?Album/.test(consentLabel));
+  // Er steht neben einem Ankreuzfeld und muss auf einen Blick lesbar bleiben.
+  assert.ok(consentLabel.length <= 220, 'Der Einwilligungstext ist zu lang für den Haken');
 });
 
 test('Die Begrenzungen sind sinnvoll gesetzt', () => {
   const l = PARTY_CONFIG.limits;
-  assert.equal(l.regularMissionsPerDevice, 1);
+  assert.equal(l.regularMissionsPerDevice, 2);
   assert.equal(l.bonusMissionsPerDevice, 1);
-  assert.equal(l.redrawsPerMission, 1, 'Es soll genau ein Tausch erlaubt sein');
+  assert.equal(l.redrawsPerMission, 2, 'Es sollen genau zwei Wechsel erlaubt sein');
+  assert.equal(l.allowExtraMissions, true, 'Freiwillige Zusatz-Missionen sollen erlaubt sein');
   assert.ok(l.maxInputFileBytes > l.maxUploadBytes);
   assert.ok(l.minNameLength >= 2);
   assert.ok(l.maxNameLength > l.minNameLength && l.maxNameLength <= 100);
@@ -140,11 +159,11 @@ test('Die Bildverarbeitung ist sinnvoll eingestellt', () => {
   assert.ok(image.quality > 0.5 && image.quality <= 1);
 });
 
-test('In der Konfiguration steht kein echter Schlüssel', () => {
-  assert.match(PARTY_CONFIG.supabase.url, /^\[/, 'Hier soll ein Platzhalter stehen');
-  assert.match(PARTY_CONFIG.supabase.anonKey, /^\[/, 'Hier soll ein Platzhalter stehen');
-  assert.ok(!/service_role/i.test(CONFIG_SOURCE));
-  assert.ok(!/eyJ[A-Za-z0-9_-]{30,}/.test(CONFIG_SOURCE), 'Es sieht nach einem echten Schlüssel aus');
+test('In der Konfiguration steht nur ein öffentlicher Supabase-Schlüssel', () => {
+  assert.match(PARTY_CONFIG.supabase.url, /^https:\/\/[a-z0-9]+\.supabase\.co\/?$/);
+  assert.match(PARTY_CONFIG.supabase.anonKey, /^(sb_publishable_|eyJ)/);
+  assert.ok(!/service_role/i.test(PARTY_CONFIG.supabase.anonKey));
+  assert.ok(!/^sb_secret_/i.test(PARTY_CONFIG.supabase.anonKey));
 });
 
 test('Der Speicherort in Supabase ist benannt', () => {
@@ -189,18 +208,17 @@ test('Jede Mission hat alle Felder in der vorgesehenen Form', () => {
   }
 });
 
-test('Die Beispiel-Missionen aus der Aufgabenstellung sind abgedeckt', () => {
+test('Die Silberhochzeits-Missionen decken wichtige Motive ab', () => {
   const alle = PARTY_CONFIG.missions.map((m) => `${m.title} ${m.description}`).join(' | ');
   for (const stichwort of [
-    'lustigsten Moment',
+    'Britta & Lutz',
     'Gruppenfoto',
-    'neu kennengelernt',
     'Generationen',
     'Outfit',
-    'Albumcover',
-    'Tanzbewegung',
+    'Silber',
+    'Tanzmoment',
     'lange nicht gesehen',
-    'Erinnerung bleiben',
+    '25 Jahre',
   ]) {
     assert.ok(alle.includes(stichwort), `Diese Mission fehlt: "${stichwort}"`);
   }
